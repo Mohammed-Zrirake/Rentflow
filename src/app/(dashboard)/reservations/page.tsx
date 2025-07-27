@@ -7,6 +7,7 @@ import type {
   Reservation,
   ReservationStatus,
   Prisma,
+  PaymentMethod,
 } from "@rentflow/database";
 import api from "@/lib/api";
 import {
@@ -19,7 +20,8 @@ import {
   Card,
   Skeleton,
   Spin, 
-  Modal
+  Modal,
+  Divider
 } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import Link from "next/link";
@@ -27,6 +29,7 @@ import type { ReservationDataType } from "./ReservationsListTable"
 import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
+import { Form, InputNumber, Select } from "antd"; 
 
 
 
@@ -61,41 +64,6 @@ const ReservationListTable = dynamic(
     ssr: false, 
   }
 );
-const fakeReservationsData: ReservationDataType[] = [
-  {
-    key: "117",
-    clientName: "amine alami",
-    vehicle: "2024",
-    createdBy: "Vous",
-    status: "En attente",
-    totalDays: 4,
-    montantPaye: 1000.0,
-    startDate: "2025-07-29 16:33",
-    endDate: "2025-08-02 16:33",
-  },
-  {
-    key: "118",
-    clientName: "Fatima Zahra",
-    vehicle: "Clio 5",
-    createdBy: "Admin",
-    status: "Terminé",
-    totalDays: 10,
-    montantPaye: 3500.0,
-    startDate: "2025-06-10 12:00",
-    endDate: "2025-06-20 12:00",
-  },
-  {
-    key: "119",
-    clientName: "Youssef Karim",
-    vehicle: "Duster",
-    createdBy: "Vous",
-    status: "Annulé",
-    totalDays: 7,
-    montantPaye: 0.0,
-    startDate: "2025-09-01 09:00",
-    endDate: "2025-09-08 09:00",
-  },
-];
 const mapApiReservationToTableData = (
   res: ApiReservation,
   currentUserId: string
@@ -121,11 +89,8 @@ const mapApiReservationToTableData = (
   };
 };
 
-
-
-
 export default function ReservationsPage() {
-  
+   const [form] = Form.useForm();
    const { data: session } = useSession();
    const currentUserId = session?.user?.id;
    const [reservations, setReservations] = useState<ApiReservation[]>([]);
@@ -135,36 +100,44 @@ export default function ReservationsPage() {
      string | number
    >(statusOptions[0]);
  
- 
-    const handleCancelReservation = (reservationId: string) => {
+   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
+   const [selectedReservationId, setSelectedReservationId] = useState<
+     string | null
+   >(null);
+
+  const [isConfirming, setIsConfirming] = useState(false);
+
+const [reservationToConfirm, setReservationToConfirm] =
+    useState<ApiReservation | null>(null);
+
+ const fetchReservations = async () => {
+   setIsLoading(true);
+   try {
+     const response = await api.get<ApiReservation[]>("/reservations");
+     setReservations(response.data);
+   } catch (error) {
+     console.error("Failed to fetch reservations:", error);
+     toast.error("Echec du chargement des données des réservations");
+   } finally {
+     setIsLoading(false);
+   }
+ };
+ const handleCancelReservation = (reservationId: string) => {
       Swal.fire({
         title: "Êtes-vous sûr ?",
         text: "Cette action est irréversible et annulera la réservation.",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#d33", // Red color for the confirm button
-        cancelButtonColor: "#3085d6", // Blue color for the cancel button
+        confirmButtonColor: "#d33", 
+        cancelButtonColor: "#3085d6", 
         confirmButtonText: "Oui, annuler !",
         cancelButtonText: "Non, garder",
       }).then((result) => {
-        // This block runs AFTER the user clicks a button
         if (result.isConfirmed) {
-          // If they clicked "Oui, annuler !", we run the API call.
           const cancelRequest = async () => {
             try {
-              // Make the API call. No need to store the result.
               await api.patch(`/reservations/${reservationId}/cancel`);
-
-              // Update the local state for an instant UI update
-              setReservations((prevReservations) =>
-                prevReservations.map((res) =>
-                  res.id === reservationId
-                    ? { ...res, status: "CANCELLED" }
-                    : res
-                )
-              );
-
-              // Show a success message
+              fetchReservations(); 
               Swal.fire(
                 "Annulée !",
                 "La réservation a été annulée avec succès.",
@@ -175,48 +148,100 @@ export default function ReservationsPage() {
               const errorMessage =
                 (error as any).response?.data?.message ||
                 "Une erreur est survenue lors de l'annulation.";
-
-              // Show an error message using SweetAlert
               Swal.fire("Erreur !", errorMessage, "error");
             }
           };
-
-          // Execute the async function
           cancelRequest();
         }
       });
     };
+ const handleOpenConfirmModal = (reservationId: string) => {
+   const reservation = reservations.find((res) => res.id === reservationId);
+   if (!reservation) {
+     toast.error("Données de la réservation introuvables.");
+     return;
+   }
+
+   const totalPaid = reservation.payments.reduce(
+     (sum, p) => sum + Number(p.amount),
+     0
+   );
+   const remainingAmount = Number(reservation.estimatedCost) - totalPaid;
+
+   if (remainingAmount <= 0) {
+     Swal.fire({
+       icon: "info",
+       title: "Déjà Entièrement Réglée",
+       text: "Cette réservation est déjà payée et ne nécessite pas de confirmation supplémentaire.",
+     });
+     return; 
+   }
+   setReservationToConfirm(reservation);
+   setIsConfirmModalVisible(true);
+   form.resetFields();
+ };
+  const handleConfirmSubmit = async (values: {
+    amount?: number;
+    method?: PaymentMethod;
+  }) => {
+    if (!reservationToConfirm) return;
+    setIsConfirming(true);
+    try {
+      const payload = {
+        downPaymentAmount: values.amount,
+        downPaymentMethod: values.method,
+      };
+      await api.patch(
+        `/reservations/${reservationToConfirm.id}/confirm`,
+        payload
+      );
+      toast.success("Réservation confirmée avec succès !");
+      fetchReservations(); 
+      setIsConfirmModalVisible(false);
+    } catch (error) {
+      console.error("Failed to confirm reservation:", error);
+      const errorMessage =
+        (error as any).response?.data?.message || "Une erreur est survenue.";
+      toast.error(errorMessage);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  useEffect(() => {
+      fetchReservations();
+    }, []);
 
 
-     useEffect(() => {
-       const fetchReservations = async () => {
-         setIsLoading(true);
-         try {
-           const response = await api.get<ApiReservation[]>("/reservations");
-           setReservations(response.data);
-         } catch (error) {
-           console.error("Failed to fetch reservations:", error);
-          toast.error("Echec du chargements des données des reservations")
-         } finally {
-           setIsLoading(false);
-         }
-       };
-       fetchReservations();
-     }, []);
 
+  const tableData = useMemo(() => {
+    if (!currentUserId) return [];
+    return reservations.map((res) => ({
+      key: res.id,
+      clientName: `${res.client.firstName} ${res.client.lastName}`,
+      vehicle: `${res.vehicle.make} ${res.vehicle.model}`,
+      createdBy:
+        res.createdById === currentUserId
+          ? "Vous"
+          : res.createdBy.name ?? "Inconnu",
+      status: mapStatusToFrench(res.status),
+      totalDays: dayjs(res.endDate).diff(dayjs(res.startDate), "day"),
+      montantPaye: res.payments.reduce((sum, p) => sum + Number(p.amount), 0),
+      startDate: res.startDate.toString(),
+      endDate: res.endDate.toString(),
+    }));
+  }, [reservations, currentUserId]);
 
-   const tableData = useMemo(() => {
-         if (!currentUserId) return [];
-         return reservations.map((res) =>
-           mapApiReservationToTableData(res, currentUserId)
-         );
-       }, [reservations, currentUserId]);
    const filteredData = useMemo(() => {
            return tableData.filter(
              (reservation) => reservation.status === activeStatusFilter
            );
          }, [tableData, activeStatusFilter]);
 
+ const remainingForModal = reservationToConfirm
+   ? Number(reservationToConfirm.estimatedCost) -
+     reservationToConfirm.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+   : 0;
 
 
   return (
@@ -280,8 +305,71 @@ export default function ReservationsPage() {
               <Spin size="large" />
             </div>
           ) : (
-            <ReservationListTable data={filteredData} loading={isLoading} onCancel={handleCancelReservation}/>
+            <ReservationListTable
+              data={filteredData}
+              loading={isLoading}
+              onCancel={handleCancelReservation}
+              onConfirm={handleOpenConfirmModal}
+            />
           )}
+        
+        
+          <Modal
+            title={`Confirmer la réservation #${reservationToConfirm?.id
+              .slice(-6)
+              .toUpperCase()}`}
+            open={isConfirmModalVisible}
+            onCancel={() => setIsConfirmModalVisible(false)}
+            confirmLoading={isConfirming}
+            onOk={() => form.submit()}
+            okText="Confirmer & Enregistrer Paiement"
+            cancelText="Annuler"
+          >
+            <Form form={form} layout="vertical" onFinish={handleConfirmSubmit}>
+              {reservationToConfirm && (
+                <>
+                  <Space
+                    direction="vertical"
+                    style={{ width: "100%", marginBottom: 16 }}
+                  >
+                    <Text>
+                      Coût total :{" "}
+                      <Text strong>
+                        {Number(reservationToConfirm.estimatedCost).toFixed(2)}{" "}
+                        MAD
+                      </Text>
+                    </Text>
+                    <Text>
+                      Reste à payer :{" "}
+                      <Text strong style={{ color: "#1677ff" }}>
+                        {remainingForModal.toFixed(2)} MAD
+                      </Text>
+                    </Text>
+                  </Space>
+                  <Divider />
+                </>
+              )}
+              <p>
+                Ajoutez un acompte pour confirmer la réservation. (Optionnel)
+              </p>
+              <Form.Item name="amount" label="Montant de l'acompte (MAD)">
+                <InputNumber
+                  style={{ width: "100%" }}
+                  min={0}
+                  max={remainingForModal} 
+                  placeholder="ex: 200"
+                />
+              </Form.Item>
+              <Form.Item name="method" label="Méthode de paiement">
+                <Select placeholder="Sélectionner une méthode" allowClear>
+                  <Select.Option value="CASH">Espèces</Select.Option>
+                  <Select.Option value="CARD">Carte bancaire</Select.Option>
+                  <Select.Option value="BANK_TRANSFER">Virement</Select.Option>
+                  <Select.Option value="CHECK">Chèque</Select.Option>
+                </Select>
+              </Form.Item>
+            </Form>
+          </Modal>
         </Card>
       </Space>
       <style jsx global>{`

@@ -21,6 +21,7 @@ import {
   CalendarOutlined,
   CreditCardOutlined,
   PlusOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { createSchemaFieldRule } from "antd-zod";
 import {
@@ -28,7 +29,7 @@ import {
   type ReservationFormValues,
 } from "@rentflow/database/schemas"; 
 import { FormInstance } from "antd/lib/form";
-import type { Client, Vehicle, PaymentMethod } from "@rentflow/database"; 
+import { type Client, type Vehicle, type PaymentMethod, ReservationStatus } from "@rentflow/database"; 
 
 const rule = createSchemaFieldRule(ReservationFormSchema);
 const { Text } = Typography;
@@ -121,7 +122,6 @@ export default function ReservationForm({
                 )}
               />
             </Form.Item>
-            {/* The standalone "Nouveau client" button is now removed, as it's inside the Select dropdown */}
           </Col>
         </Row>
       </Card>
@@ -236,7 +236,7 @@ export default function ReservationForm({
                 style={{ width: "100%", borderRadius: "8px" }}
                 size="large"
                 placeholder="Calculée automatiquement"
-                disabled 
+                disabled
               />
             </Form.Item>
           </Col>
@@ -263,6 +263,48 @@ export default function ReservationForm({
                 size="large"
               />
             </Form.Item>
+          </Col>
+        </Row>
+      </Card>
+      <Card
+        title={
+          <Space>
+            <FileTextOutlined style={{ color: "#1677ff" }} />
+            <Text strong style={{ color: "#1677ff" }}>
+              Statut 
+            </Text>
+          </Space>
+        }
+        headStyle={{ borderBottom: "1px solid #f0f0f0" }}
+        style={{
+          borderRadius: "12px",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+          border: "1px solid #f0f0f0",
+        }}
+      >
+        <Row gutter={24}>
+          <Col xs={24} md={8}>
+            <Form.Item
+              name="status"
+              label={<Text strong>Statut de la réservation</Text>}
+            >
+              <Select placeholder="Changer le statut" size="large">
+                <Select.Option value={ReservationStatus.PENDING}>
+                  En attente
+                </Select.Option>
+                <Select.Option value={ReservationStatus.CONFIRMED}>
+                  Confirmée
+                </Select.Option>
+                <Select.Option value={ReservationStatus.COMPLETED}>
+                  Terminée
+                </Select.Option>
+                <Select.Option value={ReservationStatus.CANCELLED}>
+                  Annulée
+                </Select.Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={16}>
           </Col>
         </Row>
       </Card>

@@ -39,7 +39,9 @@ const router = useRouter();
     setIsClientDrawerVisible(false);
   };
   const handleFormChange = (changedValues: any, allValues: any) => {
-  const { startDate, nombre_jours, tarif_journalier, montant } = allValues;
+  const { startDate, nombre_jours, tarif_journalier} = allValues;
+   let { montant } = allValues;
+
     if (
       changedValues.hasOwnProperty("startDate") ||
       changedValues.hasOwnProperty("nombre_jours")
@@ -48,7 +50,7 @@ const router = useRouter();
         const dateFin = dayjs(startDate).add(nombre_jours, "day");
         form.setFieldsValue({ endDate: dateFin });
       } else {
-        form.setFieldsValue({ endDate: null });
+        form.setFieldsValue({ endDate: undefined });
       }
     }
 
@@ -66,17 +68,15 @@ const router = useRouter();
       }
     }
 
-    if (
-      changedValues.hasOwnProperty("montant") ||
-      changedValues.hasOwnProperty("cout_total") ||
-      changedValues.hasOwnProperty("nombre_jours") ||
-      changedValues.hasOwnProperty("tarif_journalier")
-    ) {
-      const currentMontant = montant || 0;
-      const reste = Math.max(coutTotal - currentMontant,0);
-      form.setFieldsValue({ reste: reste });
-    }
+     if (montant > coutTotal) {
+       montant = coutTotal; 
+       form.setFieldsValue({ montant: coutTotal });
+     }
+    const reste = Math.max(coutTotal - (montant || 0), 0);
+    form.setFieldsValue({ reste: reste });
   };
+
+  
   const onFinish = async (values: any) => {
       setIsSubmitting(true);
       try {
@@ -144,9 +144,6 @@ const router = useRouter();
      };
      fetchInitialData();
    }, []);
-
-
-
 
   return (
     <>

@@ -11,6 +11,7 @@ import {
   FileAddOutlined,
   DownloadOutlined,
   DeleteOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import dayjs from "dayjs";
@@ -31,16 +32,16 @@ export interface ReservationDataType {
 interface ReservationListTableProps {
   data: ReservationDataType[];
   loading: boolean;
-  onCancel: (reservationId: string) => void
+  onCancel: (reservationId: string) => void;
+  onConfirm: (reservationId: string) => void;
 }
 
 export default function ReservationListTable({
   data,
   loading,
   onCancel, 
+  onConfirm,
 }: ReservationListTableProps) {
-
-
 
   const columns: ColumnsType<ReservationDataType> = [
     {
@@ -131,6 +132,7 @@ export default function ReservationListTable({
           record.status === "En attente" || record.status === "Confirmé";
         const canDownloadContract = record.status === "Terminé";
         const canCreateContract = record.status === "Confirmé";
+        const canBeConfirmed = record.status === "En attente";
 
         const menuItems: MenuProps["items"] = [];
 
@@ -151,12 +153,10 @@ export default function ReservationListTable({
           });
         }
         const handleMenuClick: MenuProps["onClick"] = (e) => {
-          // e.key is the 'key' you defined on the menu item
           if (e.key === "cancel") {
-            onCancel(record.key); // Call the main cancel handler from props
+            onCancel(record.key); 
           }
           if (e.key === "download_contract") {
-            // Handle download logic here in the future
             console.log("Download contract for:", record.key);
           }
         };
@@ -173,6 +173,18 @@ export default function ReservationListTable({
                 />
               </Link>
             </Tooltip>
+
+            {canBeConfirmed && (
+              <Tooltip title="Confirmer la réservation">
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<CheckCircleOutlined />}
+                  style={{ color: "green" }}
+                  onClick={() => onConfirm(record.key)}
+                />
+              </Tooltip>
+            )}
 
             {/* Conditionally render the Edit button */}
             {canBeEdited && (

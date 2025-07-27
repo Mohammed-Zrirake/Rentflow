@@ -31,7 +31,7 @@ import {
 import Link from "next/link";
 import dayjs from "dayjs";
 import api from "@/lib/api";
-import { Reservation, Payment, Client, Vehicle } from "@rentflow/database";
+import { Reservation, Payment, Client, Vehicle, PaymentMethod } from "@rentflow/database";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { ReservationFormValues } from "@rentflow/database/schemas";
@@ -125,8 +125,9 @@ export default function EditReservationPage({
         clientId: reservation.clientId,
         vehicleId: reservation.vehicleId,
         startDate: startDate,
+        status: reservation.status,
         endDate: endDate,
-        nombre_jours:nombre_jours,
+        nombre_jours: nombre_jours,
         tarif_journalier: tarif_journalier,
         cout_total: Number(reservation.estimatedCost),
       });
@@ -180,7 +181,20 @@ export default function EditReservationPage({
       form.setFieldsValue({ reste: reste });
     }
   };
-
+   const translatePaymentMethod = (method: PaymentMethod): string => {
+  switch (method) {
+    case "CASH":
+      return "Espèces";
+    case "CARD":
+      return "Carte bancaire";
+    case "BANK_TRANSFER":
+      return "Virement";
+    case "CHECK":
+      return "Chèque";
+    default:
+      return method;
+  }
+  };
   const onFinish = async (values: ReservationFormValues) => {
     setIsSubmitting(true);
     try {
@@ -190,7 +204,7 @@ export default function EditReservationPage({
         startDate: values.startDate.toISOString(),
         endDate: values.endDate?.toISOString(),
         estimatedCost: values.cout_total,
-
+        status:values.status,
       };
 
       await api.patch(`/reservations/${params.reservationId}`, payload);
@@ -272,7 +286,7 @@ export default function EditReservationPage({
                 key: p.id,
                 amount: p.amount.toString(),
                 date: dayjs(p.paymentDate).format("DD/MM/YYYY HH:mm"),
-                method: p.method,
+                method: translatePaymentMethod(p.method),
               }))}
             />
 
