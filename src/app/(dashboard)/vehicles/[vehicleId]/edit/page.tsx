@@ -61,11 +61,11 @@ const mapDtoToFormValues = (vehicle: ApiVehicle) => ({
 
 
 export default function EditVehiclePage()  {
-    const [form] = Form.useForm<VehicleFormValues>();
-    const router = useRouter();
-    const [initialData, setInitialData] = useState<ApiVehicle | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+   const [form] = Form.useForm<VehicleFormValues>();
+   const router = useRouter();
+   const [initialData, setInitialData] = useState<ApiVehicle | null>(null);
+   const [loading, setLoading] = useState(true);
+   const [isSubmitting, setIsSubmitting] = useState(false);
    const params = useParams();
    const vehicleId = params.vehicleId as string;
  
@@ -114,14 +114,16 @@ export default function EditVehiclePage()  {
    }
  }, [initialData, form]);
  
+
+
+
+
  const onFinish = useCallback(
-   async (values: VehicleFormValues) => {
+   async (values: any) => {
      setIsSubmitting(true);
      try {
        const validatedData = VehicleFormSchema.parse(values);
        const formData = new FormData();
-
-       // Determine which images were deleted
        const initialImageIds = initialData?.images.map((img) => img.id) || [];
        const currentImageUids =
          validatedData.images?.map((file: { uid: any; }) => file.uid) || [];
@@ -134,7 +136,7 @@ export default function EditVehiclePage()  {
          );
        }
 
-       // Find and append new images
+
        const newImages =
          validatedData.images?.filter((file: { originFileObj: any; }) => file.originFileObj) || [];
        if (newImages.length > 0) {
@@ -143,19 +145,26 @@ export default function EditVehiclePage()  {
          );
        }
 
-       // Append all other validated data fields
+
+  if (imagesToDelete.length > 0) {
+    imagesToDelete.forEach((id) => formData.append("imagesToDelete[]", id));
+  }
+
        for (const key in validatedData) {
-         if (
-           key !== "images" &&
-           validatedData[key] !== null &&
-           validatedData[key] !== undefined
-         ) {
-           const value = validatedData[key];
-           // Correctly format dayjs objects to ISO strings for the backend
-           if (dayjs.isDayjs(value)) {
-             formData.append(key, value.toISOString());
-           } else {
-             formData.append(key, String(value));
+         // On s'assure que la clé appartient bien à l'objet
+         if (Object.prototype.hasOwnProperty.call(validatedData, key)) {
+           // On caste la clé pour rassurer TypeScript
+           const typedKey = key as keyof VehicleFormValues;
+
+           const value = validatedData[typedKey];
+
+
+           if (typedKey !== "images" && value !== null && value !== undefined) {
+             if (dayjs.isDayjs(value)) {
+               formData.append(typedKey, value.toISOString());
+             } else {
+               formData.append(typedKey, String(value));
+             }
            }
          }
        }

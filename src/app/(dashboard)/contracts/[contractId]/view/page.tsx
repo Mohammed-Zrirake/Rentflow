@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation"; 
 import {
   Typography,
   Button,
@@ -15,7 +16,8 @@ import {
   Progress,
   Dropdown,
   MenuProps,
-  Skeleton, // Import Skeleton for loading state
+  Skeleton,
+  Alert,
 } from "antd";
 import {
   EditOutlined,
@@ -27,68 +29,262 @@ import {
   DeleteOutlined,
   PrinterOutlined,
 } from "@ant-design/icons";
+import api from "@/lib/api";
+import { toast } from "react-toastify";
+import dayjs from "dayjs";
+import type {
+  Contract,
+  Client,
+  Vehicle,
+  Payment,
+  Invoice,
+  PaymentMethod,
+  ContractStatus,
+} from "@rentflow/database";
+import Swal from "sweetalert2";
 
 const { Title, Text } = Typography;
 
 
-const PaymentListTable = dynamic(
-  () => import("./PaymentListTable"), 
-  {
-    loading: () => <Skeleton active paragraph={{ rows: 3 }} />,
-    ssr: false,
+const PaymentListTable = dynamic(() => import("./PaymentListTable"), {
+  loading: () => <Skeleton active paragraph={{ rows: 3 }} />,
+  ssr: false,
+});
+
+const TerminateContractForm = dynamic(() => import("./terminateContractForm"), {
+  loading: () => <Skeleton active paragraph={{ rows: 5 }} />,
+  ssr: false,
+});
+
+
+
+type FullContractData = Contract & {
+  client: Client;
+  secondaryDriver: Client | null;
+  vehicle: Vehicle;
+  payments: Payment[];
+  invoice: Invoice | null;
+};
+
+
+const translatePaymentMethod = (method: PaymentMethod): string => {
+  switch (method) {
+    case "CASH":
+      return "Espèces";
+    case "CARD":
+      return "Carte bancaire";
+    case "BANK_TRANSFER":
+      return "Virement";
+    case "CHECK":
+      return "Chèque";
+    default:
+      return method;
   }
-);
-
-// --- MOCK DATA and MENU ---
-const fakeContractData = {
-  id: "1228",
-  client: "amine alami (CD4933029)",
-  secondDriver: "amine alami (CD4933029)",
-  vehicle: "Alfa Romeo 2024 (49388821)",
-  mileage: "20 000 Km",
-  vehicleState: "Bon",
-  fuelLevel: 15,
-  startDate: "07/02/2025 04:25 PM",
-  duration: "5 Jours",
-  endDate: "07/07/2025 04:25 PM",
-  dailyRate: "400 MAD",
-  totalCost: "2 000 MAD",
-  payments: [
-    {
-      key: "1",
-      amount: "1 500.00",
-      date: "02-07-2025 16:26",
-      method: "Espèces",
-    },
-    { key: "2", amount: "200.00", date: "02-07-2025 16:46", method: "Espèces" },
-  ],
-  status: "Actif",
-  paidAmount: 1700,
-  totalAmount: 2000,
+};
+const mapStatusToFrench = (
+  status: ContractStatus
+): "Actif" | "Annulé" | "Terminé" => {
+  switch (status) {
+    case "ACTIVE":
+      return "Actif";
+    case "CANCELLED":
+      return "Annulé";
+    case "COMPLETED":
+      return "Terminé";
+    default:
+      return "Actif";
+  }
+};
+const getStatusColor = (status: ContractStatus) => {
+  switch (status) {
+    case "ACTIVE":
+      return "green";
+    case "CANCELLED":
+      return "red";
+    case "COMPLETED":
+      return "default";
+    default:
+      return "default";
+  }
 };
 
-const actionMenu: MenuProps = {
-  items: [
-    { key: "1", label: "Télécharger le contrat", icon: <DownloadOutlined /> },
-    { key: "2", label: "Télécharger la facture", icon: <FileTextOutlined /> },
-    { key: "3", label: "Imprimer", icon: <PrinterOutlined /> },
-    { type: "divider" },
-    {
-      key: "4",
-      label: "Annuler le contrat",
-      icon: <DeleteOutlined />,
-      danger: true,
-    },
-  ],
-};
 
 export default function ViewContractPage({
   params,
 }: {
   params: { contractId: string };
 }) {
-  const contract = fakeContractData;
-  const paymentPercentage = (contract.paidAmount / contract.totalAmount) * 100;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isTerminating = searchParams.get("action") === "terminate";
+  const [contract, setContract] = useState<FullContractData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchContract = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get<FullContractData>(
+        `/contracts/${params.contractId}`
+      );
+      setContract(response.data);
+    } catch (err) {
+      setError("Impossible de charger les données du contrat.");
+      toast.error("Échec du chargement des données.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContract();
+  }, [params.contractId]);
+
+ const handleCancel = async () => {
+    if (!contract) return;
+    const result = await Swal.fire({
+      title: "Êtes-vous sûr ?",
+      text: "Cette action annulera le contrat et rendra le véhicule disponible. Elle est irréversible.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Oui, annuler !",
+      cancelButtonText: "Non",
+    });
+    if (result.isConfirmed) {
+      try {
+        await api.patch(`/contracts/${contract.id}/cancel`);
+        toast.success("Contrat annulé avec succès !");
+        fetchContract();
+      } catch (err) {
+        toast.error(
+          (err as any).response?.data?.message || "Erreur lors de l'annulation."
+        );
+      }
+    }
+  };
+
+ const handleTerminateSubmit = async (values: any) => {
+   if (!contract) return;
+   setIsSubmitting(true);
+    try {
+      const payload = {
+        returnDate: dayjs(values.returnDate).toISOString(),
+        returnMileage: values.returnMileage,
+        returnFuelLevel: values.returnFuelLevel,
+        returnNotes: values.returnNotes,
+        vehicleState: values.vehicleState,
+        finalPaymentAmount: values.finalPaymentAmount,
+        finalPaymentMethod: values.finalPaymentMethod,
+      };
+      await api.patch(`/contracts/${contract.id}/terminate`, payload);
+      toast.success("Contrat terminé avec succès !");
+      router.push("/contracts");
+    } catch (error) {
+      toast.error(
+        (error as any).response?.data?.message ||
+          "Erreur lors de la terminaison."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+ };
+
+
+ 
+  useEffect(() => {
+    const fetchContract = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await api.get<FullContractData>(
+          `/contracts/${params.contractId}`
+        );
+        setContract(response.data);
+      } catch (err) {
+        setError("Impossible de charger les données du contrat.");
+        toast.error("Échec du chargement des données.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (params.contractId) {
+      fetchContract();
+    }
+  }, [params.contractId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: "24px" }}>
+        <Card>
+          <Skeleton active paragraph={{ rows: 20 }} />
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: "24px" }}>
+        <Alert message="Erreur" description={error} type="error" showIcon />
+      </div>
+    );
+  }
+
+  if (!contract) {
+    return (
+      <div style={{ padding: "24px" }}>
+        <Alert
+          message="Contrat non trouvé"
+          description="Le contrat que vous cherchez n'existe pas ou vous n'avez pas les permissions pour le voir."
+          type="warning"
+          showIcon
+        />
+      </div>
+    );
+  }
+
+  const paidAmount = contract.payments.reduce(
+    (sum, p) => sum + Number(p.amount),
+    0
+  );
+  const totalAmount = Number(contract.totalCost);
+  const remainingAmount = totalAmount - paidAmount;
+  const paymentPercentage =
+    totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+  const durationDays = dayjs(contract.endDate).diff(
+    dayjs(contract.startDate),
+    "day"
+  );
+  const canBeEdited = contract.status === "ACTIVE";
+  const canBeTerminated = contract.status === "ACTIVE";
+  const canBeCancelled = contract.status === "ACTIVE";
+
+
+  const actionMenu: MenuProps = {
+    items: [
+      { key: "1", label: "Télécharger le contrat", icon: <DownloadOutlined /> },
+      { key: "2", label: "Télécharger la facture", icon: <FileTextOutlined />,disabled: !contract.invoice,},
+      { key: "3", label: "Imprimer", icon: <PrinterOutlined /> },
+      ...(canBeCancelled
+        ? [
+            { type: "divider" as const },
+            {
+              key: "4",
+              label: "Annuler le contrat",
+              icon: <DeleteOutlined />,
+              danger: true,
+              onClick: () => {
+                handleCancel() 
+              },
+            },
+          ]
+        : []),
+    ],
+  };
 
   return (
     <div style={{ padding: "24px" }}>
@@ -104,48 +300,45 @@ export default function ViewContractPage({
           <Row justify="space-between" align="middle">
             <Col>
               <Space align="center">
-                <Link href="/contracts" passHref>
+                <Link href="/contracts">
                   <Button
                     type="text"
                     shape="circle"
-                    icon={<ArrowLeftOutlined />}
-                    style={{ color: "#1677ff" }}
+                    icon={<ArrowLeftOutlined style={{ color: "#1677ff" }} />}
                   />
                 </Link>
                 <Title level={3} style={{ margin: 0, color: "#1677ff" }}>
-                  Contrat #{contract.id}
+                  Contrat #{contract.id.slice(-6).toUpperCase()}
                 </Title>
                 <Tag
-                  color={
-                    contract.status === "Actif"
-                      ? "green"
-                      : contract.status === "Terminé"
-                      ? "default"
-                      : "red"
-                  }
+                  color={getStatusColor(contract.status)}
                   style={{ fontWeight: 500 }}
                 >
-                  {contract.status}
+                  {mapStatusToFrench(contract.status)}
                 </Tag>
               </Space>
             </Col>
             <Col>
               <Space>
-                <Link href={`/contracts/${params.contractId}/edit`} passHref>
+                {canBeEdited && (
+                  <Link href={`/contracts/${params.contractId}/edit`}>
+                    <Button
+                      icon={<EditOutlined />}
+                      style={{ borderRadius: "8px" }}
+                    >
+                      Modifier
+                    </Button>
+                  </Link>
+                )}
+                {canBeTerminated && (
                   <Button
-                    icon={<EditOutlined />}
+                    icon={<CheckOutlined />}
                     style={{ borderRadius: "8px" }}
+                    type="primary"
                   >
-                    Modifier
+                    Terminer
                   </Button>
-                </Link>
-                <Button
-                  icon={<CheckOutlined />}
-                  style={{ borderRadius: "8px" }}
-                  type="primary"
-                >
-                  Terminer
-                </Button>
+                )}
                 <Dropdown menu={actionMenu} trigger={["click"]}>
                   <Button
                     icon={<MoreOutlined />}
@@ -158,7 +351,14 @@ export default function ViewContractPage({
             </Col>
           </Row>
         </Card>
-
+        {isTerminating && canBeTerminated && (
+          <TerminateContractForm
+            contract={contract}
+            onFinish={handleTerminateSubmit}
+            onCancel={() => router.push(`/contracts/${contract.id}/view`)}
+            submitting={isSubmitting}
+          />
+        )}
         {/* Payment Progress */}
         <Card
           title="État du paiement"
@@ -171,19 +371,18 @@ export default function ViewContractPage({
           <Space direction="vertical" style={{ width: "100%" }}>
             <Progress
               percent={paymentPercentage}
-              status={paymentPercentage === 100 ? "success" : "active"}
-              strokeColor={paymentPercentage === 100 ? "#52c41a" : "#1677ff"}
+              status={paymentPercentage >= 100 ? "success" : "active"}
+              strokeColor={paymentPercentage >= 100 ? "#52c41a" : "#1677ff"}
             />
             <Row justify="space-between">
               <Col>
-                <Text strong>Payé:</Text> {contract.paidAmount} MAD
+                <Text strong>Payé:</Text> {paidAmount.toFixed(2)} MAD
               </Col>
               <Col>
-                <Text strong>Reste:</Text>{" "}
-                {contract.totalAmount - contract.paidAmount} MAD
+                <Text strong>Reste:</Text> {remainingAmount.toFixed(2)} MAD
               </Col>
               <Col>
-                <Text strong>Total:</Text> {contract.totalAmount} MAD
+                <Text strong>Total:</Text> {totalAmount.toFixed(2)} MAD
               </Col>
             </Row>
           </Space>
@@ -193,7 +392,7 @@ export default function ViewContractPage({
         <Card
           title={
             <Text strong style={{ color: "#1677ff" }}>
-              Informations client
+              Informations sur les conducteurs
             </Text>
           }
           style={{
@@ -206,13 +405,17 @@ export default function ViewContractPage({
               <Text strong style={{ display: "block", marginBottom: "8px" }}>
                 Client principal
               </Text>
-              <Text>{contract.client}</Text>
+              <Text>{`${contract.client.firstName} ${contract.client.lastName} (${contract.client.driverLicense})`}</Text>
             </Col>
             <Col xs={24} md={12}>
               <Text strong style={{ display: "block", marginBottom: "8px" }}>
                 Deuxième conducteur
               </Text>
-              <Text>{contract.secondDriver}</Text>
+              <Text>
+                {contract.secondaryDriver
+                  ? `${contract.secondaryDriver.firstName} ${contract.secondaryDriver.lastName} (${contract.secondaryDriver.driverLicense})`
+                  : "N/A"}
+              </Text>
             </Col>
           </Row>
         </Card>
@@ -221,7 +424,7 @@ export default function ViewContractPage({
         <Card
           title={
             <Text strong style={{ color: "#1677ff" }}>
-              Véhicule
+              Véhicule & État de départ
             </Text>
           }
           style={{
@@ -230,25 +433,15 @@ export default function ViewContractPage({
           }}
         >
           <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-            <Descriptions.Item label={<Text strong>Véhicule</Text>}>
-              {contract.vehicle}
+            <Descriptions.Item label="Véhicule">{`${contract.vehicle.make} ${contract.vehicle.model} (${contract.vehicle.licensePlate})`}</Descriptions.Item>
+            <Descriptions.Item label="Kilométrage de départ">
+              {contract.pickupMileage.toLocaleString()} Km
             </Descriptions.Item>
-            <Descriptions.Item
-              label={<Text strong>Kilométrage de départ</Text>}
-            >
-              {contract.mileage}
+            <Descriptions.Item label="Niveau carburant départ">
+              {contract.pickupFuelLevel ?? "N/A"}%
             </Descriptions.Item>
-            <Descriptions.Item label={<Text strong>État du véhicule</Text>}>
-              <Tag color="green">{contract.vehicleState}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label={<Text strong>Niveau de carburant</Text>}>
-              <Progress
-                percent={contract.fuelLevel}
-                size="small"
-                strokeColor="#1677ff"
-                showInfo={false}
-              />
-              <Text>{contract.fuelLevel}%</Text>
+            <Descriptions.Item label="Notes de départ" span={2}>
+              {contract.pickupNotes || "Aucune note"}
             </Descriptions.Item>
           </Descriptions>
         </Card>
@@ -266,27 +459,27 @@ export default function ViewContractPage({
           }}
         >
           <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-            <Descriptions.Item label={<Text strong>Date de début</Text>}>
-              {contract.startDate}
+            <Descriptions.Item label="Date de début">
+              {dayjs(contract.startDate).format("DD/MM/YYYY HH:mm")}
             </Descriptions.Item>
-            <Descriptions.Item label={<Text strong>Nombre de jours</Text>}>
-              {contract.duration}
+            <Descriptions.Item label="Nombre de jours">
+              {durationDays} Jours
             </Descriptions.Item>
-            <Descriptions.Item label={<Text strong>Date de fin</Text>}>
-              {contract.endDate}
+            <Descriptions.Item label="Date de fin">
+              {dayjs(contract.endDate).format("DD/MM/YYYY HH:mm")}
             </Descriptions.Item>
-            <Descriptions.Item label={<Text strong>Tarif journalier</Text>}>
-              {contract.dailyRate}
+            <Descriptions.Item label="Tarif journalier">
+              {Number(contract.dailyRate).toFixed(2)} MAD
             </Descriptions.Item>
-            <Descriptions.Item label={<Text strong>Coût total</Text>} span={2}>
+            <Descriptions.Item label="Coût total" span={2}>
               <Text strong style={{ fontSize: "16px" }}>
-                {contract.totalCost}
+                {totalAmount.toFixed(2)} MAD
               </Text>
             </Descriptions.Item>
           </Descriptions>
         </Card>
 
-        {/* --- DYNAMIC PAYMENT LIST --- */}
+        {/* Liste des paiements */}
         <Card
           title={
             <Text strong style={{ color: "#1677ff" }}>
@@ -298,7 +491,14 @@ export default function ViewContractPage({
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
           }}
         >
-          <PaymentListTable payments={contract.payments} />
+          <PaymentListTable
+            payments={contract.payments.map((p) => ({
+              key: p.id,
+              amount: Number(p.amount).toFixed(2),
+              date: dayjs(p.paymentDate).format("DD/MM/YYYY HH:mm"),
+              method: translatePaymentMethod(p.method),
+            }))}
+          />
         </Card>
       </Space>
 

@@ -242,6 +242,7 @@ export default function VehicleForm({
             </span>
           }
           key="images"
+          forceRender={true}
         >
           <Card bordered={false} style={{ boxShadow: "none" }}>
             <Form.Item

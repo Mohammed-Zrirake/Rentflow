@@ -10,17 +10,14 @@ import dynamic from "next/dynamic";
 const BookingCalendar = dynamic(
   () => import("./BookingCalendar"),
   {
-    // This is what users will see while the calendar component is loading
     loading: () => <Skeleton active paragraph={{ rows: 8 }} />,
-    // For highly interactive components, it's often best to disable SSR
-    // as they can't be fully interactive until the JS loads anyway.
     ssr: false,
   }
 );
 
 interface DashboardData {
-  bookingData: any[]; // Or a more specific type
-  stats: any; // Or a more specific type
+  bookingData: any[]; 
+  stats: any; 
 }
 
 

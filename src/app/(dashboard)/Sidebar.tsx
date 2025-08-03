@@ -29,8 +29,8 @@ const { Text } = Typography;
 const menuItems = [
   { key: "/", icon: <DashboardOutlined />, label: "Tableau de bord" },
   { type: "divider" },
-  { key: "/contracts", icon: <FileTextOutlined />, label: "Contrats" },
   { key: "/reservations", icon: <CalendarOutlined />, label: "Réservations" },
+  { key: "/contracts", icon: <FileTextOutlined />, label: "Contrats" },
   { key: "/clients", icon: <UserOutlined />, label: "Clients" },
   { key: "/vehicles", icon: <CarOutlined />, label: "Véhicules" },
   { type: "divider" },

@@ -14,6 +14,8 @@ import {
   Typography,
   Card,
   Divider,
+  Tag,
+  Alert,
 } from "antd";
 import {
   UserOutlined,
@@ -29,22 +31,49 @@ import {
   type ReservationFormValues,
 } from "@rentflow/database/schemas"; 
 import { FormInstance } from "antd/lib/form";
-import { type Client, type Vehicle, type PaymentMethod, ReservationStatus } from "@rentflow/database"; 
+import { type Client, type Vehicle, type PaymentMethod, ReservationStatus, VehicleStatus } from "@rentflow/database"; 
+import dayjs from "dayjs";
+import isBetween from "dayjs/plugin/isBetween";
+dayjs.extend(isBetween);
 
 const rule = createSchemaFieldRule(ReservationFormSchema);
 const { Text } = Typography;
 const { Option } = Select;
 
+type VehicleWithAvailability = Vehicle & {
+  engagements: { startDate: string; endDate: string }[];
+};
+
 interface ReservationFormProps {
   form: FormInstance<ReservationFormValues>;
   onValuesChange?: (changedValues: any, allValues: any) => void;
 
+  
+
   clients: Client[];
   loadingClients: boolean;
-  vehicles: Vehicle[];
   loadingVehicles: boolean;
   onOpenClientDrawer: () => void;
+  vehicles: VehicleWithAvailability[]; 
+  selectedVehicle: VehicleWithAvailability | null;
 }
+
+const getStatusTag = (status: VehicleStatus) => {
+  switch (status) {
+    case "AVAILABLE":
+      return <Tag color="green">Disponible</Tag>;
+    case "RENTED":
+      return <Tag color="red">Loué</Tag>;
+    case "RESERVED":
+      return <Tag color="orange">Réservé</Tag>;
+    case "MAINTENANCE":
+      return <Tag color="blue">En Maintenance</Tag>;
+    case "INACTIVE":
+      return <Tag color="default">Inactif</Tag>;
+  }
+};
+
+
 
 export default function ReservationForm({
   form,
@@ -54,7 +83,33 @@ export default function ReservationForm({
   vehicles,
   loadingVehicles,
   onOpenClientDrawer,
+  selectedVehicle,
 }: ReservationFormProps) {
+  const disabledDate = (current: dayjs.Dayjs) => {
+    // Règle 1: On ne peut pas sélectionner de dates dans le passé
+    if (current && current.isBefore(dayjs().startOf("day"))) {
+      return true;
+    }
+    // Règle 2: Si un véhicule est sélectionné et a des engagements,
+    // on vérifie si la date 'current' est dans l'un de ces intervalles
+    if (selectedVehicle && selectedVehicle.engagements.length > 0) {
+      for (const engagement of selectedVehicle.engagements) {
+        const start = dayjs(engagement.startDate);
+        const end = dayjs(engagement.endDate);
+
+        // On désactive la date si elle est entre le début et la fin d'un engagement (inclus)
+        // '[]' signifie que les jours de début et de fin sont inclus dans l'intervalle
+        if (current.isBetween(start, end, "day", "[]")) {
+          return true;
+        }
+      }
+    }
+
+    // Si aucune règle n'a retourné 'true', la date est valide
+    return false;
+  };
+
+   
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       {/* Section Informations client */}
@@ -131,9 +186,7 @@ export default function ReservationForm({
         title={
           <Space>
             <CarOutlined style={{ color: "#1677ff" }} />
-            <Text strong style={{ color: "#1677ff" }}>
-              Véhicule
-            </Text>
+            <Text strong>Véhicule</Text>
           </Space>
         }
         headStyle={{ borderBottom: "1px solid #f0f0f0" }}
@@ -145,7 +198,6 @@ export default function ReservationForm({
       >
         <Row gutter={24}>
           <Col span={24}>
-            {/* --- MODIFIED: Vehicle Select Dropdown --- */}
             <Form.Item
               name="vehicleId"
               label={<Text strong>Véhicule</Text>}
@@ -158,26 +210,63 @@ export default function ReservationForm({
                 loading={loadingVehicles}
                 optionFilterProp="children"
                 filterOption={(input, option) =>
-                  (option?.label ?? "")
+                  String(option?.children ?? "")
                     .toLowerCase()
                     .includes(input.toLowerCase())
                 }
-                options={vehicles.map(
-                  (vehicle: {
-                    id: any;
-                    make: any;
-                    model: any;
-                    licensePlate: any;
-                    status: string;
-                  }) => ({
-                    value: vehicle.id,
-                    label: `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`,
-                    disabled: vehicle.status !== "AVAILABLE",
-                  })
-                )}
-              />
+              >
+                {/* On utilise .map sur les options pour un affichage personnalisé */}
+                {vehicles.map((vehicle) => (
+                  <Option
+                    key={vehicle.id}
+                    value={vehicle.id}
+                    disabled={
+                      vehicle.status === "INACTIVE" ||
+                      vehicle.status === "MAINTENANCE"
+                    }
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span>{`${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`}</span>
+                      {getStatusTag(vehicle.status)}
+                    </div>
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
           </Col>
+
+          {/* Alerte d'information conditionnelle */}
+          {selectedVehicle && selectedVehicle.engagements.length > 0 && (
+            <Col span={24}>
+              <Alert
+                message="Ce véhicule a des engagements futurs"
+                description={
+                  <div>
+                    <p>
+                      Les dates suivantes sont déjà réservées et ne peuvent être
+                      sélectionnées :
+                    </p>
+                    <ul>
+                      {selectedVehicle.engagements.map((eng, index) => (
+                        <li key={index}>
+                          Du {dayjs(eng.startDate).format("DD/MM/YYYY")} au{" "}
+                          {dayjs(eng.endDate).format("DD/MM/YYYY")}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                }
+                type="info"
+                showIcon
+              />
+            </Col>
+          )}
         </Row>
       </Card>
 
@@ -211,6 +300,8 @@ export default function ReservationForm({
                 style={{ width: "100%", borderRadius: "8px" }}
                 size="large"
                 placeholder="jj/mm/aaaa --:--"
+                disabledDate={disabledDate}
+                disabled={!form.getFieldValue("vehicleId")}
               />
             </Form.Item>
           </Col>
@@ -263,48 +354,6 @@ export default function ReservationForm({
                 size="large"
               />
             </Form.Item>
-          </Col>
-        </Row>
-      </Card>
-      <Card
-        title={
-          <Space>
-            <FileTextOutlined style={{ color: "#1677ff" }} />
-            <Text strong style={{ color: "#1677ff" }}>
-              Statut 
-            </Text>
-          </Space>
-        }
-        headStyle={{ borderBottom: "1px solid #f0f0f0" }}
-        style={{
-          borderRadius: "12px",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
-          border: "1px solid #f0f0f0",
-        }}
-      >
-        <Row gutter={24}>
-          <Col xs={24} md={8}>
-            <Form.Item
-              name="status"
-              label={<Text strong>Statut de la réservation</Text>}
-            >
-              <Select placeholder="Changer le statut" size="large">
-                <Select.Option value={ReservationStatus.PENDING}>
-                  En attente
-                </Select.Option>
-                <Select.Option value={ReservationStatus.CONFIRMED}>
-                  Confirmée
-                </Select.Option>
-                <Select.Option value={ReservationStatus.COMPLETED}>
-                  Terminée
-                </Select.Option>
-                <Select.Option value={ReservationStatus.CANCELLED}>
-                  Annulée
-                </Select.Option>
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={16}>
           </Col>
         </Row>
       </Card>

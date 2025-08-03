@@ -18,6 +18,8 @@ import {
   Card,
   Divider,
   FormInstance,
+  Tag,
+  Alert,
 } from "antd";
 import {
   UserOutlined,
@@ -28,19 +30,40 @@ import {
 } from "@ant-design/icons";
 import { ContractFormSchema, ContractFormValues } from "@rentflow/database/schemas";
 import { createSchemaFieldRule } from "antd-zod";
-import { Client, Vehicle } from "@rentflow/database";
+import { Client, Vehicle, VehicleStatus } from "@rentflow/database";
+import dayjs from "dayjs";
 
 const { Text } = Typography;
 const { Option } = Select;
 const rule = createSchemaFieldRule(ContractFormSchema);
 
+type VehicleWithAvailability = Vehicle & {
+  engagements: { startDate: string; endDate: string }[];
+};
+
 interface ContractFormProps {
   form: FormInstance<ContractFormValues>;
   clients: Client[];
-  vehicles: Vehicle[]; 
+  vehicles: VehicleWithAvailability[]; // Utilise le type enrichi
   isFromReservation: boolean;
   onOpenClientDrawer: () => void;
+  selectedVehicle: VehicleWithAvailability | null; // Nouvelle prop
 }
+const getStatusTag = (status: VehicleStatus) => {
+  switch (status) {
+    case "AVAILABLE":
+      return <Tag color="green">Disponible</Tag>;
+    case "RENTED":
+      return <Tag color="red">Loué</Tag>;
+    case "RESERVED":
+      return <Tag color="orange">Réservé</Tag>;
+    case "MAINTENANCE":
+      return <Tag color="blue">En Maintenance</Tag>;
+    case "INACTIVE":
+      return <Tag color="default">Inactif</Tag>;
+  }
+};
+
 
 export default function ContractForm({
   form,
@@ -48,6 +71,7 @@ export default function ContractForm({
   vehicles,
   isFromReservation,
   onOpenClientDrawer,
+  selectedVehicle,
 }: ContractFormProps) {
 
     const primaryDriverId = Form.useWatch("clientId", form);
@@ -61,6 +85,30 @@ export default function ContractForm({
           })`,
         }));
     }, [clients, primaryDriverId]); 
+
+   const disabledDate = (current: dayjs.Dayjs) => {
+     // Règle 1: On ne peut pas sélectionner de dates dans le passé
+     if (current && current.isBefore(dayjs().startOf("day"))) {
+       return true;
+     }
+     // Règle 2: Si un véhicule est sélectionné et a des engagements,
+     // on vérifie si la date 'current' est dans l'un de ces intervalles
+     if (selectedVehicle && selectedVehicle.engagements.length > 0) {
+       for (const engagement of selectedVehicle.engagements) {
+         const start = dayjs(engagement.startDate);
+         const end = dayjs(engagement.endDate);
+         // On désactive la date si elle est entre le début et la fin d'un engagement (inclus)
+         // '[]' signifie que les jours de début et de fin sont inclus dans l'intervalle
+         if (current.isBetween(start, end, "day", "[]")) {
+           return true;
+         }
+       }
+     }
+
+     // Si aucune règle n'a retourné 'true', la date est valide
+     return false;
+   };
+      
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       {/* Section Informations client */}
@@ -197,12 +245,28 @@ export default function ContractForm({
                       .toLowerCase()
                       .includes(input.toLowerCase())
                   }
-                  options={vehicles.map((v) => ({
-                    value: v.id,
-                    label: `${v.make} ${v.model} (${v.licensePlate})`,
-                    disabled: v.status !== "AVAILABLE",
-                  }))}
-                />
+                >
+                  {vehicles.map((v) => (
+                    <Option
+                      key={v.id}
+                      value={v.id}
+                      disabled={
+                        v.status === "INACTIVE" || v.status === "MAINTENANCE"
+                      }
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <span>{`${v.make} ${v.model} (${v.licensePlate})`}</span>
+                        {getStatusTag(v.status)}
+                      </div>
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           )}
@@ -254,8 +318,33 @@ export default function ContractForm({
             </Form.Item>
           </Col>
         </Row>
-      </Card>
-
+               {/* Alerte d'information conditionnelle */}
+                {selectedVehicle && selectedVehicle.engagements.length > 0 && (
+                  <Col span={24}>
+                    <Alert
+                      message="Ce véhicule a des engagements futurs"
+                      description={
+                        <div>
+                          <p>
+                            Les dates suivantes sont déjà réservées et ne peuvent être
+                            sélectionnées :
+                          </p>
+                          <ul>
+                            {selectedVehicle.engagements.map((eng, index) => (
+                              <li key={index}>
+                                Du {dayjs(eng.startDate).format("DD/MM/YYYY")} au{" "}
+                                {dayjs(eng.endDate).format("DD/MM/YYYY")}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      }
+                      type="info"
+                      showIcon
+                    />
+                  </Col>
+                )}
+            </Card>
       {/* Section Périodes & tarifs */}
       <Card
         title={
@@ -285,6 +374,8 @@ export default function ContractForm({
                 format="DD/MM/YYYY HH:mm"
                 style={{ width: "100%", borderRadius: "8px" }}
                 size="large"
+                disabledDate={disabledDate}
+                disabled={!form.getFieldValue("vehicleId")}
               />
             </Form.Item>
           </Col>

@@ -14,7 +14,7 @@ import {
   Skeleton,
   notification,
 } from "antd";
-import axios from "axios";
+
 import { z } from "zod";
 import { toast } from "react-toastify"; 
 
@@ -26,7 +26,7 @@ import {
 
 const { Title, Text } = Typography;
 import api from "@/lib/api"; 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 
 const SettingsForm = dynamic(() => import("./SettingsForm"), {
@@ -189,7 +189,7 @@ const onFinish = useCallback(async (values: any) => {
 
   return (
     <div style={{ padding: "24px" }}>
-      <Space direction="vertical" size="large" style={{ width: "100%" }}>
+<Space direction="vertical" size="large" style={{ width: "100%" }}>
         <Card bordered={false}>
           <Row align="middle">
             <Col>

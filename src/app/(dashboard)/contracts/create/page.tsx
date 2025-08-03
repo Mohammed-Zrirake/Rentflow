@@ -10,6 +10,12 @@ import { Client, Reservation, Vehicle } from "@rentflow/database";
 import api from "@/lib/api";
 import { toast } from "react-toastify";
 import Link from "next/link";
+import { a } from "node_modules/framer-motion/dist/types.d-Bq-Qm38R";
+import { all } from "axios";
+
+type VehicleWithAvailability = Vehicle & {
+  engagements: { startDate: string; endDate: string }[];
+};
 
 const { Title, Text } = Typography;
 
@@ -33,49 +39,51 @@ export default function CreateContractPage() {
   const reservationId = searchParams.get("reservationId");
 
    const [clients, setClients] = useState<Client[]>([]);
-   const [vehicles, setVehicles] = useState<Vehicle[]>([]); 
+   const [vehicles, setVehicles] = useState<VehicleWithAvailability[]>([]);
+   const [selectedVehicle, setSelectedVehicle] =
+      useState<VehicleWithAvailability | null>(null);
+   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]); 
    const [loading, setLoading] = useState(true);
    const [isClientDrawerVisible, setIsClientDrawerVisible] = useState(false);
    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [reservationData, setReservationData] = useState<
+      (Reservation & { client: Client; vehicle: Vehicle }) | null
+    >(null);
 
-   useEffect(() => {
-     const fetchInitialData = async () => {
-       setLoading(true);
-       try {
-         // On récupère toujours la liste de tous les clients
-         const clientsResponse = await api.get<Client[]>("/clients");
-         setClients(clientsResponse.data);
+     useEffect(() => {
+       const fetchInitialData = async () => {
+         setLoading(true);
+         try {
+           const [clientsRes, vehiclesRes] = await Promise.all([
+             api.get<Client[]>("/clients"),
+             api.get<VehicleWithAvailability[]>("/vehicles"),
+           ]);
+           setClients(clientsRes.data);
+           setVehicles(vehiclesRes.data);
 
-         if (reservationId) {
-           // Cas 1: On vient d'une réservation, on récupère ses détails
-           const reservationResponse = await api.get<
-             Reservation & { client: Client; vehicle: Vehicle }
-           >(`/reservations/${reservationId}`);
-           const reservation = reservationResponse.data;
-
-           form.setFieldsValue({
-             reservationId: reservation.id,
-             clientId: reservation.clientId,
-             vehicleId: reservation.vehicleId,
-             // On peut aussi pré-remplir le kilométrage actuel du véhicule
-             pickupMileage: reservation.vehicle.mileage,
-           });
-         } else {
-           // Cas 2: Création d'un contrat direct, on a besoin des véhicules disponibles
-           const vehiclesResponse = await api.get<Vehicle[]>(
-             "/vehicles/status/AVAILABLE"
-           );
-           setVehicles(vehiclesResponse.data);
+           if (reservationId) {
+             const res = await api.get<Reservation & { vehicle: Vehicle }>(
+               `/reservations/${reservationId}`
+             );
+             const reservation = res.data;
+             form.setFieldsValue({
+               reservationId: reservation.id,
+               clientId: reservation.clientId,
+               vehicleId: reservation.vehicleId,
+               pickupMileage: reservation.vehicle.mileage,
+             });
+  setSelectedVehicle(
+    vehiclesRes.data.find((v) => v.id === reservation.vehicleId) || null
+  );
+           }
+         } catch (error) {
+           toast.error("Impossible de charger les données nécessaires.");
+         } finally {
+           setLoading(false);
          }
-       } catch (error) {
-         toast.error("Impossible de charger les données nécessaires.");
-         console.error(error);
-       } finally {
-         setLoading(false);
-       }
-     };
-     fetchInitialData();
-   }, [reservationId, form]);
+       };
+       fetchInitialData();
+     }, [reservationId, form]);
 
    const handleClientCreated = (newClient: Client) => {
      toast.success(
@@ -85,90 +93,136 @@ export default function CreateContractPage() {
      setIsClientDrawerVisible(false);
      form.setFieldsValue({ secondaryDriverId: newClient.id });
    };
-   const handleFormChange = (changedValues: any, allValues: any) => {
-       const { startDate, durationDays, dailyRate } = allValues;
-       let { amountPaid } = allValues;
+    const handleFormChange = (changedValues: any, allValues: any) => {
+      // 1. Gérer le changement de véhicule
+      if (changedValues.hasOwnProperty("vehicleId")) {
+        const vehicle = vehicles.find((v) => v.id === changedValues.vehicleId);
+        setSelectedVehicle(vehicle || null);
+        if (vehicle) {
+          // Réinitialiser les champs dépendants et pré-remplir le kilométrage
+          form.setFieldsValue({
+            pickupMileage: vehicle.mileage,
+            startDate: undefined,
+            durationDays: undefined,
+            endDate: undefined,
+            dailyRate: undefined,
+            totalCost: undefined,
+            amountPaid: undefined,
+            remainingAmount: undefined,
+          });
+        }
+        return;
+      }
 
-       if (
-         changedValues.hasOwnProperty("startDate") ||
-         changedValues.hasOwnProperty("durationDays")
-       ) {
-         if (startDate && durationDays > 0) {
-           form.setFieldsValue({
-             endDate: dayjs(startDate).add(durationDays, "day"),
-           });
-         } else {
-           form.setFieldsValue({ endDate: undefined });
-         }
-       }
+      // 2. Préparer les variables pour les calculs
+      const { startDate, dailyRate } = allValues;
+      let { durationDays, amountPaid } = allValues;
 
-       let totalCost = form.getFieldValue("totalCost") || 0;
-       if (
-         changedValues.hasOwnProperty("durationDays") ||
-         changedValues.hasOwnProperty("dailyRate")
-       ) {
-         if (durationDays > 0 && dailyRate > 0) {
-           totalCost = durationDays * dailyRate;
-           form.setFieldsValue({ totalCost: totalCost });
-         } else {
-           totalCost = 0;
-           form.setFieldsValue({ totalCost: 0 });
-         }
-       }
+      // 3. Calculer la durée et la date de fin, avec auto-correction
+      if (startDate && typeof durationDays === "number" && durationDays > 0) {
+        // LOGIQUE D'AUTO-CORRECTION
+        if (selectedVehicle && selectedVehicle.engagements.length > 0) {
+          const nextEngagement = selectedVehicle.engagements
+            .map((e) => ({ start: dayjs(e.startDate) }))
+            .filter((e) => e.start.isAfter(startDate))
+            .sort((a, b) => a.start.diff(b.start))[0];
 
-       if (amountPaid > totalCost) {
-         amountPaid = totalCost;
-         form.setFieldsValue({ amountPaid: totalCost });
-       }
+          if (nextEngagement) {
+            const maxDuration = nextEngagement.start.diff(startDate, "day");
+            if (durationDays > maxDuration) {
+              durationDays = maxDuration; // Corriger la variable
+              form.setFieldsValue({ durationDays: maxDuration }); // Corriger l'UI
+              toast.info(
+                `La durée a été ajustée à ${maxDuration} jours pour ne pas chevaucher l'engagement suivant.`,
+                { autoClose: 4000 }
+              );
+            }
+          }
+        }
 
-       const remainingAmount = Math.max(totalCost - (amountPaid || 0), 0);
-       form.setFieldsValue({ remainingAmount: remainingAmount });
+        const endDate = dayjs(startDate).add(durationDays, "day");
+        form.setFieldsValue({ endDate: endDate });
+      } else {
+        form.setFieldsValue({ endDate: undefined });
+      }
+
+      // 4. Calculer le coût total
+      let totalCost = 0;
+      if (durationDays > 0 && dailyRate > 0) {
+        totalCost = durationDays * dailyRate;
+        form.setFieldsValue({ totalCost: totalCost });
+      } else {
+        form.setFieldsValue({ totalCost: 0 });
+      }
+
+      // 5. Plafonner le montant payé et calculer le reste
+      if (amountPaid > totalCost) {
+        amountPaid = totalCost;
+        form.setFieldsValue({ amountPaid: totalCost });
+      }
+      const remainingAmount = Math.max(totalCost - (amountPaid || 0), 0);
+      form.setFieldsValue({ remainingAmount: remainingAmount });
     };
+
+
    const onFinish = async (values: any) => {
-   setIsSubmitting(true);
-   
-     const payload = {
-     
-       reservationId: values.reservationId,
-       clientId: values.clientId,
-       vehicleId: values.vehicleId,
-       secondaryDriverId: values.secondaryDriverId,
+     setIsSubmitting(true);
+     try {
+       await form.validateFields();
+       const allFormValues = form.getFieldsValue(true);
+       const payload = {
+         reservationId: allFormValues.reservationId,
+         clientId: allFormValues.clientId,
+         vehicleId: allFormValues.vehicleId,
+         secondaryDriverId: allFormValues.secondaryDriverId,
 
-       
-       startDate: dayjs(values.startDate).toISOString(),
-       endDate: dayjs(values.endDate).toISOString(),
-       dailyRate: values.dailyRate,
-       totalCost: values.totalCost,
+         startDate: dayjs(allFormValues.startDate).toISOString(),
+         endDate: dayjs(allFormValues.endDate).toISOString(),
+         dailyRate: allFormValues.dailyRate,
+         totalCost: allFormValues.totalCost,
 
-     
-       pickupMileage: values.pickupMileage,
-       pickupFuelLevel: values.pickupFuelLevel,
-       pickupNotes: values.pickupNotes,
+         pickupMileage: allFormValues.pickupMileage,
+         pickupFuelLevel: allFormValues.pickupFuelLevel,
+         pickupNotes: allFormValues.pickupNotes,
 
-       payments:
-         values.amountPaid > 0 && values.paymentMethod
-           ? [
-               {
-                 amount: values.amountPaid,
-                 method: values.paymentMethod,
-               },
-             ]
-           : [],
-     };
+         payments:
+           values.amountPaid > 0 && allFormValues.paymentMethod
+             ? [
+                 {
+                   amount: allFormValues.amountPaid,
+                   method: allFormValues.paymentMethod,
+                 },
+               ]
+             : [],
+       };
+       if (
+         !payload.clientId ||
+         !payload.vehicleId ||
+         !payload.startDate ||
+         !payload.endDate ||
+         !payload.totalCost
+       ) {
+         toast.error("Veuillez remplir tous les champs obligatoires.");
+         setIsSubmitting(false);
+         return;
+       }
 
-   try {
-     await api.post("/contracts", payload);
-     toast.success("Contrat créé avec succès !");
-     router.push("/contracts");
-   } catch (error) {
-     console.error(error);
-     toast.error(
-       (error as any).response?.data?.message ||
-         "Erreur lors de la création du contrat."
-     );
-   } finally {
-     setIsSubmitting(false);
-   }
+       await api.post("/contracts", payload);
+       toast.success("Contrat créé avec succès !");
+       router.push("/contracts");
+     } catch (error) {
+       console.error("Erreur de soumission ou de validation:", error);
+       if ((error as any).errorFields) {
+         toast.error("Veuillez corriger les erreurs dans le formulaire.");
+       } else {
+         toast.error(
+           (error as any).response?.data?.message ||
+             "Erreur lors de la création du contrat."
+         );
+       }
+     } finally {
+       setIsSubmitting(false);
+     }
    };
 
 
@@ -198,6 +252,7 @@ export default function CreateContractPage() {
                 vehicles={vehicles}
                 isFromReservation={!!reservationId}
                 onOpenClientDrawer={() => setIsClientDrawerVisible(true)}
+                selectedVehicle={selectedVehicle}
               />
             )}
 
@@ -238,7 +293,7 @@ export default function CreateContractPage() {
 
       <Drawer
         title="Nouveau client"
-        width={720}
+        width='60%'
         onClose={() => setIsClientDrawerVisible(false)}
         open={isClientDrawerVisible}
         destroyOnClose

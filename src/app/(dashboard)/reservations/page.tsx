@@ -155,32 +155,20 @@ const [reservationToConfirm, setReservationToConfirm] =
         }
       });
     };
- const handleOpenConfirmModal = (reservationId: string) => {
-   const reservation = reservations.find((res) => res.id === reservationId);
-   if (!reservation) {
-     toast.error("Données de la réservation introuvables.");
-     return;
-   }
 
-   const totalPaid = reservation.payments.reduce(
-     (sum, p) => sum + Number(p.amount),
-     0
-   );
-   const remainingAmount = Number(reservation.estimatedCost) - totalPaid;
+    
+    const handleOpenConfirmModal = (reservationId: string) => {
+      const reservation = reservations.find((res) => res.id === reservationId);
+      if (!reservation) {
+        toast.error("Données de la réservation introuvables.");
+        return;
+      }
+      setReservationToConfirm(reservation);
+      setIsConfirmModalVisible(true);
+      form.resetFields();
+    };
 
-   if (remainingAmount <= 0) {
-     Swal.fire({
-       icon: "info",
-       title: "Déjà Entièrement Réglée",
-       text: "Cette réservation est déjà payée et ne nécessite pas de confirmation supplémentaire.",
-     });
-     return; 
-   }
-   setReservationToConfirm(reservation);
-   setIsConfirmModalVisible(true);
-   form.resetFields();
- };
-  const handleConfirmSubmit = async (values: {
+ const handleConfirmSubmit = async (values: {
     amount?: number;
     method?: PaymentMethod;
   }) => {
@@ -312,8 +300,7 @@ const [reservationToConfirm, setReservationToConfirm] =
               onConfirm={handleOpenConfirmModal}
             />
           )}
-        
-        
+
           <Modal
             title={`Confirmer la réservation #${reservationToConfirm?.id
               .slice(-6)
@@ -322,7 +309,7 @@ const [reservationToConfirm, setReservationToConfirm] =
             onCancel={() => setIsConfirmModalVisible(false)}
             confirmLoading={isConfirming}
             onOk={() => form.submit()}
-            okText="Confirmer & Enregistrer Paiement"
+            okText="Confirmer la réservation"
             cancelText="Annuler"
           >
             <Form form={form} layout="vertical" onFinish={handleConfirmSubmit}>
@@ -350,13 +337,16 @@ const [reservationToConfirm, setReservationToConfirm] =
                 </>
               )}
               <p>
-                Ajoutez un acompte pour confirmer la réservation. (Optionnel)
+                <p>
+                  Vous pouvez confirmer cette réservation. Si le client paie un
+                  acompte maintenant, ajoutez-le ci-dessous.
+                </p>
               </p>
-              <Form.Item name="amount" label="Montant de l'acompte (MAD)">
+              <Form.Item name="amount" label="Montant de l'acompte (MAD) optionnel">
                 <InputNumber
                   style={{ width: "100%" }}
                   min={0}
-                  max={remainingForModal} 
+                  max={remainingForModal}
                   placeholder="ex: 200"
                 />
               </Form.Item>

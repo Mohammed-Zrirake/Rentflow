@@ -37,6 +37,7 @@ import { useSession } from "next-auth/react";
 import api from "@/lib/api";
 import { toast } from "react-toastify";
 import { useForm } from "antd/es/form/Form";
+import { useRouter } from "next/navigation";
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
@@ -81,7 +82,7 @@ const mapStatusToFrench = (
 
 export default function ContractsPage() {
 
-
+ const router = useRouter();
  const { data: session } = useSession();
  const currentUserId = session?.user?.id;
  const [contracts, setContracts] = useState<ApiContract[]>([]);
@@ -217,15 +218,20 @@ export default function ContractsPage() {
         setLoading(false);
       }
     };
- const handleTerminate = (contractId: string) => {
-   Swal.fire(
-     "Action: Terminer Contrat",
-     `Vous allez être redirigé pour finaliser le contrat #${contractId.slice(
-       -6
-     )}.`,
-     "info"
-   );
- };
+  const handleTerminate = (contractId: string) => {
+    Swal.fire({
+      title: "Terminer le contrat",
+      text: `Vous allez être redirigé pour finaliser le contrat #${contractId
+        .slice(-6)
+        .toUpperCase()}.`,
+      icon: "info",
+      confirmButtonText: "Continuer",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        router.push(`/contracts/${contractId}/view?action=terminate`);
+      }
+    });
+  };
   const handleCancel = (contractId: string) => {
     Swal.fire({
       title: "Êtes-vous sûr ?",
