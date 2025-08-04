@@ -7,7 +7,7 @@ import Link from "next/link";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import type { Client, Vehicle } from "@rentflow/database";
 
@@ -26,6 +26,8 @@ const CreateClientInDrawer = dynamic(() => import("../../reservations/create/cre
 });
 
 export default function CreateReservationPage() {
+const searchParams = useSearchParams();
+const clientIdFromUrl = searchParams.get("clientId");
 const [form] = Form.useForm();
 const router = useRouter();
  const [clients, setClients] = useState<Client[]>([]);
@@ -167,6 +169,9 @@ const handleFormChange = (changedValues: any, allValues: any) => {
          ]);
          setClients(clientsResponse.data);
          setVehicles(vehiclesResponse.data);
+            if (clientIdFromUrl) {
+              form.setFieldsValue({ clientId: clientIdFromUrl });
+            }
        } catch (error) {
          console.error("Failed to fetch initial data:", error);
          toast.error("Impossible de charger les clients et les véhicules.");
@@ -176,7 +181,7 @@ const handleFormChange = (changedValues: any, allValues: any) => {
        }
      };
      fetchInitialData();
-   }, []);
+   }, [clientIdFromUrl,form]);
 
   return (
     <>
@@ -204,6 +209,7 @@ const handleFormChange = (changedValues: any, allValues: any) => {
               loadingVehicles={loadingVehicles}
               onOpenClientDrawer={() => setIsClientDrawerVisible(true)}
               selectedVehicle={selectedVehicle}
+              isClientPreselected={!!clientIdFromUrl}
             />
 
             <Row justify="end">

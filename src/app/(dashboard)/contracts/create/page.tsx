@@ -37,6 +37,8 @@ export default function CreateContractPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reservationId = searchParams.get("reservationId");
+  const clientIdFromUrl = searchParams.get("clientId");
+
 
    const [clients, setClients] = useState<Client[]>([]);
    const [vehicles, setVehicles] = useState<VehicleWithAvailability[]>([]);
@@ -72,9 +74,14 @@ export default function CreateContractPage() {
                vehicleId: reservation.vehicleId,
                pickupMileage: reservation.vehicle.mileage,
              });
-  setSelectedVehicle(
-    vehiclesRes.data.find((v) => v.id === reservation.vehicleId) || null
-  );
+             setSelectedVehicle(
+               vehiclesRes.data.find((v) => v.id === reservation.vehicleId) ||
+                 null
+             );
+           } else if (clientIdFromUrl) {
+             form.setFieldsValue({
+               clientId: clientIdFromUrl,
+             });
            }
          } catch (error) {
            toast.error("Impossible de charger les données nécessaires.");
@@ -83,7 +90,7 @@ export default function CreateContractPage() {
          }
        };
        fetchInitialData();
-     }, [reservationId, form]);
+     }, [reservationId,clientIdFromUrl,form]);
 
    const handleClientCreated = (newClient: Client) => {
      toast.success(
@@ -229,16 +236,21 @@ export default function CreateContractPage() {
   return (
     <>
       <div style={{ padding: "24px" }}>
-        <Form form={form} layout="vertical" onFinish={onFinish} onValuesChange={handleFormChange} >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          onValuesChange={handleFormChange}
+        >
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
             <Title level={2} style={{ color: "#1677ff", marginBottom: 0 }}>
               Nouveau contrat
             </Title>
             <Text type="secondary">
               {reservationId
-                ? `Création d'un contrat à partir de la réservation #${reservationId.slice(
-                    -6
-                  )}`
+                ? `À partir de la réservation #${reservationId.slice(-6)}`
+                : clientIdFromUrl
+                ? `Pour le client sélectionné`
                 : "Remplissez les informations pour créer un nouveau contrat"}
             </Text>
             <Divider style={{ margin: "16px 0" }} />
@@ -251,6 +263,7 @@ export default function CreateContractPage() {
                 clients={clients}
                 vehicles={vehicles}
                 isFromReservation={!!reservationId}
+                isClientPreselected={!!clientIdFromUrl}
                 onOpenClientDrawer={() => setIsClientDrawerVisible(true)}
                 selectedVehicle={selectedVehicle}
               />
@@ -293,7 +306,7 @@ export default function CreateContractPage() {
 
       <Drawer
         title="Nouveau client"
-        width='60%'
+        width="60%"
         onClose={() => setIsClientDrawerVisible(false)}
         open={isClientDrawerVisible}
         destroyOnClose

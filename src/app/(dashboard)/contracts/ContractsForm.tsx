@@ -46,6 +46,7 @@ interface ContractFormProps {
   clients: Client[];
   vehicles: VehicleWithAvailability[]; // Utilise le type enrichi
   isFromReservation: boolean;
+  isClientPreselected: boolean;
   onOpenClientDrawer: () => void;
   selectedVehicle: VehicleWithAvailability | null; // Nouvelle prop
 }
@@ -70,45 +71,45 @@ export default function ContractForm({
   clients,
   vehicles,
   isFromReservation,
+  isClientPreselected,
   onOpenClientDrawer,
   selectedVehicle,
 }: ContractFormProps) {
+  const primaryDriverId = Form.useWatch("clientId", form);
+  const secondaryDriverOptions = useMemo(() => {
+    return clients
+      .filter((client) => client.id !== primaryDriverId)
+      .map((client) => ({
+        value: client.id,
+        label: `${client.firstName} ${client.lastName} (${
+          client.driverLicense || "N/A"
+        })`,
+      }));
+  }, [clients, primaryDriverId]);
 
-    const primaryDriverId = Form.useWatch("clientId", form);
-    const secondaryDriverOptions = useMemo(() => {
-      return clients
-        .filter((client) => client.id !== primaryDriverId) 
-        .map((client) => ({
-          value: client.id,
-          label: `${client.firstName} ${client.lastName} (${
-            client.driverLicense || "N/A"
-          })`,
-        }));
-    }, [clients, primaryDriverId]); 
+  const disabledDate = (current: dayjs.Dayjs) => {
+    // Règle 1: On ne peut pas sélectionner de dates dans le passé
+    if (current && current.isBefore(dayjs().startOf("day"))) {
+      return true;
+    }
+    // Règle 2: Si un véhicule est sélectionné et a des engagements,
+    // on vérifie si la date 'current' est dans l'un de ces intervalles
+    if (selectedVehicle && selectedVehicle.engagements.length > 0) {
+      for (const engagement of selectedVehicle.engagements) {
+        const start = dayjs(engagement.startDate);
+        const end = dayjs(engagement.endDate);
+        // On désactive la date si elle est entre le début et la fin d'un engagement (inclus)
+        // '[]' signifie que les jours de début et de fin sont inclus dans l'intervalle
+        if (current.isBetween(start, end, "day", "[]")) {
+          return true;
+        }
+      }
+    }
 
-   const disabledDate = (current: dayjs.Dayjs) => {
-     // Règle 1: On ne peut pas sélectionner de dates dans le passé
-     if (current && current.isBefore(dayjs().startOf("day"))) {
-       return true;
-     }
-     // Règle 2: Si un véhicule est sélectionné et a des engagements,
-     // on vérifie si la date 'current' est dans l'un de ces intervalles
-     if (selectedVehicle && selectedVehicle.engagements.length > 0) {
-       for (const engagement of selectedVehicle.engagements) {
-         const start = dayjs(engagement.startDate);
-         const end = dayjs(engagement.endDate);
-         // On désactive la date si elle est entre le début et la fin d'un engagement (inclus)
-         // '[]' signifie que les jours de début et de fin sont inclus dans l'intervalle
-         if (current.isBetween(start, end, "day", "[]")) {
-           return true;
-         }
-       }
-     }
+    // Si aucune règle n'a retourné 'true', la date est valide
+    return false;
+  };
 
-     // Si aucune règle n'a retourné 'true', la date est valide
-     return false;
-   };
-      
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       {/* Section Informations client */}
@@ -139,7 +140,7 @@ export default function ContractForm({
                 showSearch
                 placeholder="Sélectionner le client principal"
                 size="large"
-                disabled={isFromReservation}
+                disabled={isFromReservation || isClientPreselected}
                 optionFilterProp="children"
                 filterOption={(input, option) =>
                   String(option?.label ?? "")
@@ -228,48 +229,47 @@ export default function ContractForm({
         }}
       >
         <Row gutter={24}>
-          {!isFromReservation && (
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="vehicleId"
-                label={<Text strong>Véhicule</Text>}
-                rules={[rule]}
+          <Col xs={24} md={12}>
+            <Form.Item
+              name="vehicleId"
+              label={<Text strong>Véhicule</Text>}
+              rules={[rule]}
+            >
+              <Select
+                showSearch
+                placeholder="Sélectionner un véhicule disponible"
+                size="large"
+                optionFilterProp="label"
+                disabled={isFromReservation}
+                filterOption={(input, option) =>
+                  String(option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
               >
-                <Select
-                  showSearch
-                  placeholder="Sélectionner un véhicule disponible"
-                  size="large"
-                  optionFilterProp="children"
-                  filterOption={(input, option) =>
-                    String(option?.label ?? "")
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
-                >
-                  {vehicles.map((v) => (
-                    <Option
-                      key={v.id}
-                      value={v.id}
-                      disabled={
-                        v.status === "INACTIVE" || v.status === "MAINTENANCE"
-                      }
+                {vehicles.map((v) => (
+                  <Option
+                    key={v.id}
+                    value={v.id}
+                    disabled={
+                      v.status === "INACTIVE" || v.status === "MAINTENANCE"
+                    }
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span>{`${v.make} ${v.model} (${v.licensePlate})`}</span>
-                        {getStatusTag(v.status)}
-                      </div>
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          )}
+                      <span>{`${v.make} ${v.model} (${v.licensePlate})`}</span>
+                      {getStatusTag(v.status)}
+                    </div>
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
           <Col xs={24} md={8}>
             <Form.Item
               name="pickupMileage"
@@ -305,46 +305,34 @@ export default function ContractForm({
               />
             </Form.Item>
           </Col>
-          <Col xs={24} md={8}>
-            <Form.Item
-              name="vehicleState"
-              label={<Text strong>État du véhicule</Text>}
-            >
-              <Radio.Group>
-                <Radio.Button value="Bon">Bon</Radio.Button>
-                <Radio.Button value="Moyen">Moyen</Radio.Button>
-                <Radio.Button value="Endommagé">Endommagé</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
         </Row>
-               {/* Alerte d'information conditionnelle */}
-                {selectedVehicle && selectedVehicle.engagements.length > 0 && (
-                  <Col span={24}>
-                    <Alert
-                      message="Ce véhicule a des engagements futurs"
-                      description={
-                        <div>
-                          <p>
-                            Les dates suivantes sont déjà réservées et ne peuvent être
-                            sélectionnées :
-                          </p>
-                          <ul>
-                            {selectedVehicle.engagements.map((eng, index) => (
-                              <li key={index}>
-                                Du {dayjs(eng.startDate).format("DD/MM/YYYY")} au{" "}
-                                {dayjs(eng.endDate).format("DD/MM/YYYY")}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      }
-                      type="info"
-                      showIcon
-                    />
-                  </Col>
-                )}
-            </Card>
+        {/* Alerte d'information conditionnelle */}
+        {selectedVehicle && selectedVehicle.engagements.length > 0 && (
+          <Col span={24}>
+            <Alert
+              message="Ce véhicule a des engagements futurs"
+              description={
+                <div>
+                  <p>
+                    Les dates suivantes sont déjà réservées et ne peuvent être
+                    sélectionnées :
+                  </p>
+                  <ul>
+                    {selectedVehicle.engagements.map((eng, index) => (
+                      <li key={index}>
+                        Du {dayjs(eng.startDate).format("DD/MM/YYYY")} au{" "}
+                        {dayjs(eng.endDate).format("DD/MM/YYYY")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              }
+              type="info"
+              showIcon
+            />
+          </Col>
+        )}
+      </Card>
       {/* Section Périodes & tarifs */}
       <Card
         title={

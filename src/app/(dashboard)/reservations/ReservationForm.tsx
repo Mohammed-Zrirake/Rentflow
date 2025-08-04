@@ -47,14 +47,12 @@ type VehicleWithAvailability = Vehicle & {
 interface ReservationFormProps {
   form: FormInstance<ReservationFormValues>;
   onValuesChange?: (changedValues: any, allValues: any) => void;
-
-  
-
+  isClientPreselected: boolean;
   clients: Client[];
   loadingClients: boolean;
   loadingVehicles: boolean;
   onOpenClientDrawer: () => void;
-  vehicles: VehicleWithAvailability[]; 
+  vehicles: VehicleWithAvailability[];
   selectedVehicle: VehicleWithAvailability | null;
 }
 
@@ -83,6 +81,7 @@ export default function ReservationForm({
   vehicles,
   loadingVehicles,
   onOpenClientDrawer,
+  isClientPreselected,
   selectedVehicle,
 }: ReservationFormProps) {
   const disabledDate = (current: dayjs.Dayjs) => {
@@ -109,7 +108,6 @@ export default function ReservationForm({
     return false;
   };
 
-   
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       {/* Section Informations client */}
@@ -142,6 +140,7 @@ export default function ReservationForm({
                 size="large"
                 loading={loadingClients}
                 optionFilterProp="children"
+                disabled={isClientPreselected}
                 filterOption={(input, option) =>
                   String(option?.label ?? "")
                     .toLowerCase()
