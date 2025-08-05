@@ -163,38 +163,80 @@ const [reservationToConfirm, setReservationToConfirm] =
         toast.error("Données de la réservation introuvables.");
         return;
       }
+      const totalPaid = reservation.payments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0
+      );
+      const totalCost = Number(reservation.estimatedCost);
+      const remainingAmount = totalCost - totalPaid;
+
+      // --- NOUVELLE LOGIQUE DE CONFIRMATION DIRECTE ---
+      if (remainingAmount <= 0) {
+        // Si le solde est nul ou négatif, la réservation est déjà payée.
+        Swal.fire({
+          title: "Déjà entièrement réglée",
+          text: "Cette réservation est déjà payée. Voulez-vous la confirmer directement ?",
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonText: "Oui, confirmer",
+          cancelButtonText: "Non",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // On appelle directement la logique de soumission, sans ouvrir le modal
+            // et sans envoyer de données de paiement.
+            handleConfirmSubmit({});
+          }
+        });
+        // On stocke l'ID au cas où l'utilisateur confirme
+        setSelectedReservationId(reservationId);
+        return; // On arrête ici pour ne pas ouvrir le modal.
+      }
+
+      // Si un solde reste à payer, on ouvre le modal comme avant
       setReservationToConfirm(reservation);
+      setSelectedReservationId(reservationId); // Assurez-vous que l'ID est bien stocké
       setIsConfirmModalVisible(true);
       form.resetFields();
     };
 
+
  const handleConfirmSubmit = async (values: {
-    amount?: number;
-    method?: PaymentMethod;
-  }) => {
-    if (!reservationToConfirm) return;
-    setIsConfirming(true);
-    try {
-      const payload = {
-        downPaymentAmount: values.amount,
-        downPaymentMethod: values.method,
-      };
-      await api.patch(
-        `/reservations/${reservationToConfirm.id}/confirm`,
-        payload
-      );
-      toast.success("Réservation confirmée avec succès !");
-      fetchReservations(); 
-      setIsConfirmModalVisible(false);
-    } catch (error) {
-      console.error("Failed to confirm reservation:", error);
-      const errorMessage =
-        (error as any).response?.data?.message || "Une erreur est survenue.";
-      toast.error(errorMessage);
-    } finally {
-      setIsConfirming(false);
-    }
-  };
+   amount?: number;
+   method?: PaymentMethod;
+ }) => {
+   const targetReservationId =
+     selectedReservationId || reservationToConfirm?.id;
+
+   if (!targetReservationId) {
+     toast.error("Impossible de trouver l'ID de la réservation à confirmer.");
+     return;
+   }
+
+   setIsConfirming(true);
+   try {
+     const payload = {
+       downPaymentAmount: values.amount,
+       downPaymentMethod: values.method,
+     };
+
+     await api.patch(`/reservations/${targetReservationId}/confirm`, payload);
+
+     toast.success("Réservation confirmée avec succès !");
+     fetchReservations(); 
+
+    
+     setIsConfirmModalVisible(false);
+     setReservationToConfirm(null);
+     setSelectedReservationId(null);
+   } catch (error) {
+     console.error("Failed to confirm reservation:", error);
+     const errorMessage =
+       (error as any).response?.data?.message || "Une erreur est survenue.";
+     toast.error(errorMessage);
+   } finally {
+     setIsConfirming(false);
+   }
+ };
 
   useEffect(() => {
       fetchReservations();

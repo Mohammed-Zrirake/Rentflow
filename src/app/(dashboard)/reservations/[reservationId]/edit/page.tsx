@@ -63,7 +63,9 @@ const moreActionsMenu: MenuProps = {
     { key: "2", label: "Annuler", icon: <DeleteOutlined />, danger: true },
   ],
 };
-
+type VehicleWithAvailability = Vehicle & {
+  engagements: { startDate: string; endDate: string }[];
+};
 
 type NewClientData = Client;
 type FullReservation = Reservation & {
@@ -81,11 +83,13 @@ export default function EditReservationPage({
   const router = useRouter();
   const [reservation, setReservation] = useState<FullReservation | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleWithAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClientDrawerVisible, setIsClientDrawerVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
+    const [selectedVehicle, setSelectedVehicle] =
+       useState<VehicleWithAvailability | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -94,7 +98,7 @@ export default function EditReservationPage({
         const [resRes, clientsRes, vehiclesRes] = await Promise.all([
           api.get<FullReservation>(`/reservations/${params.reservationId}`),
           api.get<Client[]>("/clients"),
-          api.get<Vehicle[]>("/vehicles"),
+          api.get<VehicleWithAvailability[]>("/vehicles"),
         ]);
 
         setReservation(resRes.data);
@@ -142,45 +146,83 @@ export default function EditReservationPage({
     form.setFieldsValue({ clientId: newClient.id });
     setIsClientDrawerVisible(false);
   };
-  const handleFormChange = (changedValues: any, allValues: any) => {
-    const { startDate, nombre_jours, tarif_journalier, montant } = allValues;
-    if (
-      changedValues.hasOwnProperty("startDate") ||
-      changedValues.hasOwnProperty("nombre_jours")
-    ) {
-      if (startDate && nombre_jours > 0) {
-        const dateFin = dayjs(startDate).add(nombre_jours, "day");
-        form.setFieldsValue({ endDate: dateFin });
-      } else {
-        form.setFieldsValue({ endDate: undefined });
-      }
-    }
+ const handleFormChange = (changedValues: any, allValues: any) => {
+   if (changedValues.hasOwnProperty("vehicleId")) {
+     const vehicle = vehicles.find((v) => v.id === changedValues.vehicleId);
+     setSelectedVehicle(vehicle || null);
+     form.setFieldsValue({
+       startDate: undefined,
+       nombre_jours: undefined,
+       endDate: undefined,
+       tarif_journalier: undefined,
+       cout_total: undefined,
+       montant: undefined,
+       reste: undefined,
+     });
+     return;
+   }
 
-    let coutTotal = form.getFieldValue("cout_total") || 0;
-    if (
-      changedValues.hasOwnProperty("nombre_jours") ||
-      changedValues.hasOwnProperty("tarif_journalier")
-    ) {
-      if (nombre_jours > 0 && tarif_journalier > 0) {
-        coutTotal = nombre_jours * tarif_journalier;
-        form.setFieldsValue({ cout_total: coutTotal });
-      } else {
-        form.setFieldsValue({ cout_total: 0 });
-        coutTotal = 0;
-      }
-    }
+   const { startDate, tarif_journalier } = allValues;
+   let { nombre_jours, montant } = allValues;
 
-    if (
-      changedValues.hasOwnProperty("montant") ||
-      changedValues.hasOwnProperty("cout_total") ||
-      changedValues.hasOwnProperty("nombre_jours") ||
-      changedValues.hasOwnProperty("tarif_journalier")
-    ) {
-      const currentMontant = montant || 0;
-      const reste = Math.max(coutTotal - currentMontant, 0);
-      form.setFieldsValue({ reste: reste });
-    }
-  };
+   if (startDate && typeof nombre_jours === "number" && nombre_jours > 0) {
+     if (selectedVehicle && selectedVehicle.engagements.length > 0) {
+       const nextEngagement = selectedVehicle.engagements
+         .map((e) => ({ start: dayjs(e.startDate) }))
+         .filter((e) => e.start.isAfter(startDate))
+         .sort((a, b) => a.start.diff(b.start))[0];
+
+       if (nextEngagement) {
+         const maxDuration = nextEngagement.start.diff(startDate, "day");
+
+         if (nombre_jours > maxDuration) {
+           nombre_jours = maxDuration;
+           form.setFieldsValue({ nombre_jours: maxDuration });
+           toast.info(
+             `La durée a été ajustée à ${maxDuration} jours pour ne pas chevaucher l'engagement suivant.`,
+             { autoClose: 4000 }
+           );
+         }
+       }
+     }
+
+     const endDate = dayjs(startDate).add(nombre_jours, "day");
+     form.setFieldsValue({ endDate: endDate });
+   } else {
+     form.setFieldsValue({ endDate: undefined });
+   }
+
+   let coutTotal = form.getFieldValue("cout_total") || 0;
+   if (
+     changedValues.hasOwnProperty("nombre_jours") ||
+     changedValues.hasOwnProperty("tarif_journalier")
+   ) {
+     if (nombre_jours > 0 && tarif_journalier > 0) {
+       coutTotal = nombre_jours * tarif_journalier;
+       form.setFieldsValue({ cout_total: coutTotal });
+     } else {
+       coutTotal = 0;
+       form.setFieldsValue({ cout_total: 0 });
+     }
+   }
+
+   const totalAlreadyPaid = reservation
+     ? reservation.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+     : 0;
+   const remainingBalance = Math.max(0, coutTotal - totalAlreadyPaid);
+
+   if (montant > remainingBalance) {
+     montant = remainingBalance;
+     form.setFieldsValue({ montant: remainingBalance });
+   }
+
+   const reste = Math.max(remainingBalance - (montant || 0), 0);
+   form.setFieldsValue({ reste: reste });
+ };
+
+
+
+
    const translatePaymentMethod = (method: PaymentMethod): string => {
   switch (method) {
     case "CASH":
@@ -198,7 +240,7 @@ export default function EditReservationPage({
   const onFinish = async (values: ReservationFormValues) => {
     setIsSubmitting(true);
     try {
-      const payload = {
+      const reservationData = {
         clientId: values.clientId,
         vehicleId: values.vehicleId,
         startDate: values.startDate.toISOString(),
@@ -206,6 +248,19 @@ export default function EditReservationPage({
         estimatedCost: values.cout_total,
         status:values.status,
       };
+
+        const newPayments = [];
+        if (values.montant && values.montant > 0 && values.paymentMethod) {
+          newPayments.push({
+            amount: Number(values.montant),
+            method: values.paymentMethod,
+          });
+        }
+
+         const payload = {
+           ...reservationData,
+           payments: newPayments, 
+         };
 
       await api.patch(`/reservations/${params.reservationId}`, payload);
       toast.success("Réservation mise à jour avec succès !");
@@ -241,6 +296,12 @@ export default function EditReservationPage({
         style={{ margin: 24 }}
       />
     );
+     const totalPaid = reservation.payments.reduce(
+       (sum, p) => sum + Number(p.amount),
+       0
+     );
+     const totalCost = Number(reservation.estimatedCost);
+     const remainingAmount = totalCost - totalPaid;
 
   return (
     <>
@@ -280,15 +341,35 @@ export default function EditReservationPage({
               loadingVehicles={loading}
               onOpenClientDrawer={() => setIsClientDrawerVisible(true)}
             />
-
-            <ReservationPaymentsTable
-              payments={reservation.payments.map((p) => ({
-                key: p.id,
-                amount: p.amount.toString(),
-                date: dayjs(p.paymentDate).format("DD/MM/YYYY HH:mm"),
-                method: translatePaymentMethod(p.method),
-              }))}
-            />
+            <Card
+              title={
+                <Space>
+                  <CreditCardOutlined style={{ color: "#1677ff" }} />
+                  <Text strong style={{ color: "#1677ff" }}>
+                    Paiements Enregistrés
+                  </Text>
+                  {remainingAmount > 0 && (
+                    <Text type="danger">
+                      (Reste à payer: {remainingAmount.toFixed(2)} MAD)
+                    </Text>
+                  )}
+                </Space>
+              }
+              style={{
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+                border: "1px solid #f0f0f0",
+              }}
+            >
+              <ReservationPaymentsTable
+                payments={reservation.payments.map((p) => ({
+                  key: p.id,
+                  amount: p.amount.toString(),
+                  date: dayjs(p.paymentDate).format("DD/MM/YYYY HH:mm"),
+                  method: translatePaymentMethod(p.method),
+                }))}
+              />
+            </Card>
 
             <Row justify="end">
               <Space>

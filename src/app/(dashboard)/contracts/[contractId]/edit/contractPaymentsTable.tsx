@@ -1,35 +1,33 @@
 "use client";
 
 import React from "react";
-import { Table, Tag, Typography } from "antd";
+import { Table, Typography, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 const { Text } = Typography;
 
-
-export interface PaymentDataType {
+interface PaymentData {
   key: string;
   amount: string;
   date: string;
   method: string;
 }
 
-interface ReservationPaymentsTableProps {
-  payments: PaymentDataType[];
+interface ContractPaymentsTableProps {
+  payments: PaymentData[];
 }
 
-const paymentColumns: ColumnsType<PaymentDataType> = [
+const columns: ColumnsType<PaymentData> = [
   {
     title: "Montant (MAD)",
     dataIndex: "amount",
     key: "amount",
-    render: (text) => <Text strong>{text}</Text>,
+    render: (text: string) => <Text strong>{text}</Text>,
   },
   {
     title: "Date",
     dataIndex: "date",
     key: "date",
-    render: (text) => <Text>{text}</Text>,
   },
   {
     title: "Méthode",
@@ -39,16 +37,15 @@ const paymentColumns: ColumnsType<PaymentDataType> = [
   },
 ];
 
-export default function ReservationPaymentsTable({
+export default function ContractPaymentsTable({
   payments,
-}: ReservationPaymentsTableProps) {
+}: ContractPaymentsTableProps) {
   return (
     <Table
-      columns={paymentColumns}
+      columns={columns}
       dataSource={payments}
       pagination={false}
-      size="middle"
-      style={{ borderRadius: "8px" }}
+      size="small"
     />
   );
 }

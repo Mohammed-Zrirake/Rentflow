@@ -1,9 +1,10 @@
 // app/(dashboard)/invoices/AddPaymentModal.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Modal, Form, Button, InputNumber, Select } from "antd";
 import type { InvoiceDataType } from "./InvoiceListTable";
+import { PaymentMethod } from "@rentflow/database";
 
 const { Option } = Select;
 
@@ -12,6 +13,7 @@ interface AddPaymentModalProps {
   onCancel: () => void;
   onSubmit: (values: any) => void;
   invoice: InvoiceDataType | null;
+  submitting?: boolean; 
 }
 
 export default function AddPaymentModal({
@@ -19,12 +21,25 @@ export default function AddPaymentModal({
   onCancel,
   onSubmit,
   invoice,
+  submitting,
 }: AddPaymentModalProps) {
   const [form] = Form.useForm();
 
+    const remainingAmount = invoice
+      ? invoice.totalAmount - invoice.paidAmount
+      : 0;
+
+    useEffect(() => {
+      if (open) {
+        form.resetFields();
+      }
+    }, [open, invoice, form]);
+
   return (
     <Modal
-      title={`Ajouter un paiement pour la facture #${invoice?.key}`}
+      title={`Ajouter un paiement pour la facture #${invoice?.key
+        .slice(-6)
+        .toUpperCase()}`}
       open={open}
       onCancel={onCancel}
       footer={[
@@ -36,10 +51,12 @@ export default function AddPaymentModal({
           type="primary"
           onClick={() => form.submit()}
           style={{ borderRadius: "8px" }}
+          loading={submitting}
         >
-          Ajouter
+          Ajouter le paiment
         </Button>,
       ]}
+      destroyOnClose
     >
       <Form form={form} layout="vertical" onFinish={onSubmit}>
         <Form.Item label="Montant restant à payer">
@@ -58,6 +75,8 @@ export default function AddPaymentModal({
             style={{ width: "100%", borderRadius: "8px" }}
             addonAfter="MAD"
             min={0.01}
+            max={remainingAmount}
+            placeholder={`Maximum ${remainingAmount.toFixed(2)}`}
           />
         </Form.Item>
         <Form.Item
@@ -69,9 +88,10 @@ export default function AddPaymentModal({
             placeholder="Choisir une méthode"
             style={{ borderRadius: "8px" }}
           >
-            <Option value="cash">Espèces</Option>
-            <Option value="card">Carte bancaire</Option>
-            <Option value="transfer">Virement</Option>
+            <Option value={PaymentMethod.CASH}>Espèces</Option>
+            <Option value={PaymentMethod.CARD}>Carte bancaire</Option>
+            <Option value={PaymentMethod.BANK_TRANSFER}>Virement</Option>
+            <Option value={PaymentMethod.CHECK}>Chèque</Option>
           </Select>
         </Form.Item>
       </Form>

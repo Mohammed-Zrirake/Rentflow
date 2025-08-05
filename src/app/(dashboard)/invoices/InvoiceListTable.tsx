@@ -14,12 +14,14 @@ export interface InvoiceDataType {
   status: "Payé" | "Partiellement payé" | "En attente" | "Annulé";
   reservationId?: string;
   contractId?: string;
+  loading?: boolean;
 }
 
 // The props interface is also correct
 interface InvoiceListTableProps {
   data: InvoiceDataType[];
   onAddPayment: (invoice: InvoiceDataType) => void;
+  loading?: boolean;
 }
 
 // This is a helper function. It's self-contained and perfect to keep here.
@@ -113,11 +115,13 @@ const columns = (
 export default function InvoiceListTable({
   data,
   onAddPayment,
+  loading,
 }: InvoiceListTableProps) {
   return (
     <Table
       columns={columns(onAddPayment)}
       dataSource={data}
+      loading={loading}
       pagination={{
         position: ["bottomRight"],
         showSizeChanger: true,

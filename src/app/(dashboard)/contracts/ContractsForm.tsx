@@ -32,6 +32,10 @@ import { ContractFormSchema, ContractFormValues } from "@rentflow/database/schem
 import { createSchemaFieldRule } from "antd-zod";
 import { Client, Vehicle, VehicleStatus } from "@rentflow/database";
 import dayjs from "dayjs";
+import isBetween from "dayjs/plugin/isBetween";
+dayjs.extend(isBetween);
+
+
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -44,11 +48,12 @@ type VehicleWithAvailability = Vehicle & {
 interface ContractFormProps {
   form: FormInstance<ContractFormValues>;
   clients: Client[];
-  vehicles: VehicleWithAvailability[]; // Utilise le type enrichi
-  isFromReservation: boolean;
-  isClientPreselected: boolean;
+  vehicles: VehicleWithAvailability[];
+  isFromReservation?: boolean;
+  isClientPreselected?: boolean;
   onOpenClientDrawer: () => void;
-  selectedVehicle: VehicleWithAvailability | null; // Nouvelle prop
+  selectedVehicle?: VehicleWithAvailability | null;
+  isEditMode?: boolean;
 }
 const getStatusTag = (status: VehicleStatus) => {
   switch (status) {
@@ -65,12 +70,12 @@ const getStatusTag = (status: VehicleStatus) => {
   }
 };
 
-
 export default function ContractForm({
   form,
   clients,
   vehicles,
   isFromReservation,
+  isEditMode,
   isClientPreselected,
   onOpenClientDrawer,
   selectedVehicle,
@@ -105,12 +110,12 @@ export default function ContractForm({
         }
       }
     }
-
     // Si aucune règle n'a retourné 'true', la date est valide
     return false;
   };
 
   return (
+    
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       {/* Section Informations client */}
       <Card
@@ -363,7 +368,7 @@ export default function ContractForm({
                 style={{ width: "100%", borderRadius: "8px" }}
                 size="large"
                 disabledDate={disabledDate}
-                disabled={!form.getFieldValue("vehicleId")}
+                disabled={!form.getFieldValue("vehicleId") || isEditMode}
               />
             </Form.Item>
           </Col>
@@ -377,6 +382,7 @@ export default function ContractForm({
                 addonAfter="Jours"
                 style={{ width: "100%", borderRadius: "8px" }}
                 size="large"
+                disabled={isEditMode}
               />
             </Form.Item>
           </Col>
@@ -402,6 +408,7 @@ export default function ContractForm({
                 addonAfter="MAD"
                 style={{ width: "100%", borderRadius: "8px" }}
                 size="large"
+                disabled={isEditMode}
               />
             </Form.Item>
           </Col>
@@ -424,7 +431,9 @@ export default function ContractForm({
           <Space>
             <CreditCardOutlined style={{ color: "#1677ff" }} />
             <Text strong style={{ color: "#1677ff" }}>
-              Détails du paiement (Facultatif)
+              {isEditMode
+                ? "Ajouter un paiement"
+                : "Paiement Initial (Facultatif)"}
             </Text>
           </Space>
         }

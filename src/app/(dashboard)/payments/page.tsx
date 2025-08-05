@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Typography,
@@ -12,6 +12,10 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import type { PaymentDataType } from "./PaymentListTableFull";
+import { Payment, PaymentMethod } from "@rentflow/database";
+import api from "@/lib/api";
+import { toast } from "react-toastify";
+import { useSearchParams } from "next/navigation";
 
 const { Title, Text } = Typography;
 const PaymentListTable = dynamic(
@@ -21,41 +25,62 @@ const PaymentListTable = dynamic(
     ssr: false, 
   }
 );
-const fakePaymentsData: PaymentDataType[] = [
-  {
-    key: "PAY-001",
-    amount: 200.0,
-    date: "2025-07-02 16:46",
-    method: "cash",
-    contractId: "1228",
-  },
-  {
-    key: "PAY-002",
-    amount: 1000.0,
-    date: "2025-07-02 16:33",
-    method: "cash",
-    reservationId: "117",
-  },
-  {
-    key: "PAY-003",
-    amount: 1500.0,
-    date: "2025-07-02 16:26",
-    method: "cash",
-    contractId: "1228",
-  },
-  {
-    key: "PAY-004",
-    amount: 450.0,
-    date: "2025-06-15 11:00",
-    method: "card",
-    contractId: "1229",
-  },
-];
+type ApiPayment = Payment & {
+  reservation: { id: string } | null;
+  contract: { id: string } | null;
+};
+
+const translatePaymentMethod = (method: PaymentMethod): string => {
+  switch (method) {
+    case "CASH":
+      return "Espèces";
+    case "CARD":
+      return "Carte";
+    case "BANK_TRANSFER":
+      return "Virement";
+    case "CHECK":
+      return "Chèque";
+    default:
+      return method;
+  }
+};
+
 
 export default function PaymentsPage() {
-  const sortedData = [...fakePaymentsData].sort(
-    (a, b) => dayjs(b.date).unix() - dayjs(a.date).unix()
-  );
+   const [payments, setPayments] = useState<ApiPayment[]>([]);
+   const [loading, setLoading] = useState(true);
+     const searchParams = useSearchParams();
+     const invoiceIdFilter = searchParams.get("invoiceId");
+
+ useEffect(() => {
+   const fetchPayments = async () => {
+     setLoading(true);
+     try {
+       const url = invoiceIdFilter
+         ? `/payments?invoiceId=${invoiceIdFilter}`
+         : "/payments";
+       const response = await api.get<ApiPayment[]>(url);
+       setPayments(response.data);
+     } catch (error) {
+       console.error("Failed to fetch payments:", error);
+       toast.error("Échec du chargement des paiements.");
+     } finally {
+       setLoading(false);
+     }
+   };
+   fetchPayments();
+ }, [invoiceIdFilter]); 
+
+ const tableData = useMemo((): PaymentDataType[] => {
+   return payments.map((payment) => ({
+     key: payment.id,
+     amount: Number(payment.amount),
+     date: payment.paymentDate.toString(),
+     method: translatePaymentMethod(payment.method),
+     reservationId: payment.reservation?.id,
+     contractId: payment.contract?.id,
+   }));
+ }, [payments]);
 
   return (
     <div style={{ padding: "24px" }}>
@@ -70,10 +95,12 @@ export default function PaymentsPage() {
           <Row align="middle">
             <Col>
               <Title level={3} style={{ margin: 0, color: "#1677ff" }}>
-                Paiements
+                {invoiceIdFilter
+                  ? `Paiements pour la facture #${invoiceIdFilter.slice(-6)}`
+                  : "Tous les Paiements"}
               </Title>
               <Text type="secondary">
-                {sortedData.length} paiements enregistrés
+                {tableData.length} paiements enregistrés
               </Text>
             </Col>
           </Row>
@@ -85,7 +112,7 @@ export default function PaymentsPage() {
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
           }}
         >
-          <PaymentListTable data={sortedData} />
+          <PaymentListTable data={tableData} loading={loading} />
         </Card>
       </Space>
 

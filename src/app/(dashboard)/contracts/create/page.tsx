@@ -10,8 +10,7 @@ import { Client, Reservation, Vehicle } from "@rentflow/database";
 import api from "@/lib/api";
 import { toast } from "react-toastify";
 import Link from "next/link";
-import { a } from "node_modules/framer-motion/dist/types.d-Bq-Qm38R";
-import { all } from "axios";
+
 
 type VehicleWithAvailability = Vehicle & {
   engagements: { startDate: string; endDate: string }[];
@@ -44,13 +43,9 @@ export default function CreateContractPage() {
    const [vehicles, setVehicles] = useState<VehicleWithAvailability[]>([]);
    const [selectedVehicle, setSelectedVehicle] =
       useState<VehicleWithAvailability | null>(null);
-   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]); 
    const [loading, setLoading] = useState(true);
    const [isClientDrawerVisible, setIsClientDrawerVisible] = useState(false);
    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [reservationData, setReservationData] = useState<
-      (Reservation & { client: Client; vehicle: Vehicle }) | null
-    >(null);
 
      useEffect(() => {
        const fetchInitialData = async () => {

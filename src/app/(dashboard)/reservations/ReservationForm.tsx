@@ -31,7 +31,7 @@ import {
   type ReservationFormValues,
 } from "@rentflow/database/schemas"; 
 import { FormInstance } from "antd/lib/form";
-import { type Client, type Vehicle, type PaymentMethod, ReservationStatus, VehicleStatus } from "@rentflow/database"; 
+import { type Client, type Vehicle, VehicleStatus } from "@rentflow/database"; 
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 dayjs.extend(isBetween);
@@ -47,13 +47,13 @@ type VehicleWithAvailability = Vehicle & {
 interface ReservationFormProps {
   form: FormInstance<ReservationFormValues>;
   onValuesChange?: (changedValues: any, allValues: any) => void;
-  isClientPreselected: boolean;
+  isClientPreselected?: boolean;
   clients: Client[];
   loadingClients: boolean;
   loadingVehicles: boolean;
   onOpenClientDrawer: () => void;
   vehicles: VehicleWithAvailability[];
-  selectedVehicle: VehicleWithAvailability | null;
+  selectedVehicle?: VehicleWithAvailability | null;
 }
 
 const getStatusTag = (status: VehicleStatus) => {
@@ -71,11 +71,8 @@ const getStatusTag = (status: VehicleStatus) => {
   }
 };
 
-
-
 export default function ReservationForm({
   form,
-  onValuesChange,
   clients,
   loadingClients,
   vehicles,

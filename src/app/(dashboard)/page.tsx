@@ -39,12 +39,11 @@ export default function DashboardHomePage() {
     const [loading, setLoading] = useState(true);
     
    useEffect(() => {
-     console.log("DashboardHomePage: Le composant est monté. Début du fetch."); // LOG 1
+    
 
      const fetchData = async () => {
        setLoading(true);
        try {
-         console.log("DashboardHomePage: Appel à Promise.all..."); // LOG 2
          const [statsRes, calendarRes] = await Promise.all([
            api.get("/dashboard/stats"),
            api.get("/dashboard/calendar-data"),
@@ -53,10 +52,9 @@ export default function DashboardHomePage() {
           const transformedBookingData = calendarRes.data.map(
             (vehicle: ApiBookingData) => ({
               ...vehicle,
-              // On applique la même logique que pour la page des véhicules
               imageUrl: vehicle.imageUrl
                 ? `${process.env.NEXT_PUBLIC_API_URL}${vehicle.imageUrl}`
-                : "/default-vehicle.png", // Image de secours
+                : "/default-vehicle.png", 
             })
           );
 
@@ -65,15 +63,12 @@ export default function DashboardHomePage() {
            bookingData: transformedBookingData,
          });
 
-         console.log("DashboardHomePage: L'état 'data' a été mis à jour."); // LOG 4
        } catch (error) {
-         console.error("DashboardHomePage: ERREUR PENDANT LE FETCH !", error); // LOG ERREUR
          toast.error(
            "Erreur lors du chargement des données du tableau de bord."
          );
        } finally {
          setLoading(false);
-         console.log("DashboardHomePage: Fin du chargement (finally)."); // LOG FIN
        }
      };
 
