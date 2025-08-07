@@ -7,23 +7,16 @@ import {
   Button,
   Space,
   Row,
-  Col,
   Card,
   Form,
   Tag,
-  Dropdown,
   Skeleton,
   Alert,
   Drawer,
-  Divider, // Keep Skeleton for loading states
+  Divider,
 } from "antd";
-import type { MenuProps } from "antd/es/menu";
 import {
-  EyeOutlined,
-  FileAddOutlined,
-  MoreOutlined,
-  DownloadOutlined,
-  DeleteOutlined,
+
   CreditCardOutlined,
   ArrowLeftOutlined,
   SaveOutlined,
@@ -57,12 +50,7 @@ const ReservationPaymentsTable = dynamic(
     ssr: false,
   }
 );
-const moreActionsMenu: MenuProps = {
-  items: [
-    { key: "1", label: "Télécharger le contrat", icon: <DownloadOutlined /> },
-    { key: "2", label: "Annuler", icon: <DeleteOutlined />, danger: true },
-  ],
-};
+
 type VehicleWithAvailability = Vehicle & {
   engagements: { startDate: string; endDate: string }[];
 };
@@ -122,7 +110,7 @@ export default function EditReservationPage({
       const startDate = dayjs(reservation.startDate);
       const endDate = dayjs(reservation.endDate);
       const nombre_jours = endDate.diff(startDate, "day");
-      const tarif_journalier =
+      const dailyRate =
         nombre_jours > 0 ? Number(reservation.estimatedCost) / nombre_jours : 0;
 
       form.setFieldsValue({
@@ -132,7 +120,7 @@ export default function EditReservationPage({
         status: reservation.status,
         endDate: endDate,
         nombre_jours: nombre_jours,
-        tarif_journalier: tarif_journalier,
+        dailyRate: dailyRate,
         cout_total: Number(reservation.estimatedCost),
       });
     }
@@ -154,7 +142,7 @@ export default function EditReservationPage({
        startDate: undefined,
        nombre_jours: undefined,
        endDate: undefined,
-       tarif_journalier: undefined,
+       dailyRate: undefined,
        cout_total: undefined,
        montant: undefined,
        reste: undefined,
@@ -162,7 +150,7 @@ export default function EditReservationPage({
      return;
    }
 
-   const { startDate, tarif_journalier } = allValues;
+   const { startDate, dailyRate } = allValues;
    let { nombre_jours, montant } = allValues;
 
    if (startDate && typeof nombre_jours === "number" && nombre_jours > 0) {
@@ -195,10 +183,10 @@ export default function EditReservationPage({
    let coutTotal = form.getFieldValue("cout_total") || 0;
    if (
      changedValues.hasOwnProperty("nombre_jours") ||
-     changedValues.hasOwnProperty("tarif_journalier")
+     changedValues.hasOwnProperty("dailyRate")
    ) {
-     if (nombre_jours > 0 && tarif_journalier > 0) {
-       coutTotal = nombre_jours * tarif_journalier;
+     if (nombre_jours > 0 && dailyRate > 0) {
+       coutTotal = nombre_jours * dailyRate;
        form.setFieldsValue({ cout_total: coutTotal });
      } else {
        coutTotal = 0;
@@ -401,7 +389,7 @@ export default function EditReservationPage({
       </div>
       <Drawer
         title="Nouveau client"
-        width={720}
+        width="60%"
         onClose={() => setIsClientDrawerVisible(false)}
         open={isClientDrawerVisible}
         destroyOnClose

@@ -45,26 +45,25 @@ const router = useRouter();
     form.setFieldsValue({ clientId: newClient.id });
     setIsClientDrawerVisible(false);
   };
-  
-  
-  
 const handleFormChange = (changedValues: any, allValues: any) => {
   if (changedValues.hasOwnProperty("vehicleId")) {
     const vehicle = vehicles.find((v) => v.id === changedValues.vehicleId);
     setSelectedVehicle(vehicle || null);
-    form.setFieldsValue({
-      startDate: undefined,
-      nombre_jours: undefined,
-      endDate: undefined,
-      tarif_journalier: undefined,
-      cout_total: undefined,
-      montant: undefined,
-      reste: undefined,
-    });
+    if (vehicle) {
+      form.setFieldsValue({
+        dailyRate: Number(vehicle.dailyRate),
+        startDate: undefined,
+        nombre_jours: undefined,
+        endDate: undefined,
+        cout_total: undefined,
+        montant: undefined,
+        reste: undefined,
+      });
+    }
     return; 
   }
 
-  const { startDate, tarif_journalier } = allValues;
+  const { startDate, dailyRate } = allValues;
   let { nombre_jours, montant } = allValues;
   if (startDate && typeof nombre_jours === "number" && nombre_jours > 0) {
     if (selectedVehicle && selectedVehicle.engagements.length > 0) {
@@ -96,8 +95,8 @@ const handleFormChange = (changedValues: any, allValues: any) => {
 
   
   let coutTotal = 0;
-  if (nombre_jours > 0 && tarif_journalier > 0) {
-    coutTotal = nombre_jours * tarif_journalier;
+  if (nombre_jours > 0 && dailyRate > 0) {
+    coutTotal = nombre_jours * dailyRate;
     form.setFieldsValue({ cout_total: coutTotal });
   } else {
     form.setFieldsValue({ cout_total: 0 });

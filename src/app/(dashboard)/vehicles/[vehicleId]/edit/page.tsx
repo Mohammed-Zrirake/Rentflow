@@ -32,34 +32,6 @@ const VehicleForm = dynamic(() => import("../../VehiclesForm"), {
 type ApiVehicle = Vehicle & { images: VehicleImage[] };
 
 
-const mapDtoToFormValues = (vehicle: ApiVehicle) => ({
-  marque: vehicle.make,
-  modele: vehicle.model,
-  annee: vehicle.year,
-  plaque: vehicle.licensePlate,
-  statut: vehicle.status,
-  tarif_journalier: Number(vehicle.dailyRate),
-  kilometrage: vehicle.mileage,
-  prochaine_vidange: vehicle.nextOilChangeMileage,
-  date_assurance: vehicle.insuranceExpiryDate
-    ? dayjs(vehicle.insuranceExpiryDate)
-    : null,
-  date_controle: vehicle.technicalInspectionExpiryDate
-    ? dayjs(vehicle.technicalInspectionExpiryDate)
-    : null,
-  date_circulation: vehicle.trafficLicenseExpiryDate
-    ? dayjs(vehicle.trafficLicenseExpiryDate)
-    : null,
-  images: vehicle.images.map((img) => ({
-    uid: img.id,
-    name: img.url.split("/").pop(),
-    status: "done",
-    url: `${process.env.NEXT_PUBLIC_API_URL}${img.url}`,
-  })),
-});
-
-
-
 export default function EditVehiclePage()  {
    const [form] = Form.useForm<VehicleFormValues>();
    const router = useRouter();
@@ -69,7 +41,7 @@ export default function EditVehiclePage()  {
    const params = useParams();
    const vehicleId = params.vehicleId as string;
  
-    useEffect(() => {
+ useEffect(() => {
       if (!vehicleId) return;
       const fetchVehicle = async () => {
         try {
@@ -114,9 +86,6 @@ export default function EditVehiclePage()  {
    }
  }, [initialData, form]);
  
-
-
-
 
  const onFinish = useCallback(
    async (values: any) => {
@@ -178,7 +147,7 @@ export default function EditVehiclePage()  {
            name: issue.path,
            errors: [issue.message],
          }));
-         form.setFields(fieldErrors);
+         form.setFields(fieldErrors as any);
          toast.error("Veuillez corriger les erreurs dans le formulaire.");
        } else {
          const errorMessage =
@@ -202,10 +171,8 @@ export default function EditVehiclePage()  {
 
   return (
     <div style={{ padding: "24px", width: "100%" }}>
-      {/* The Form provider now wraps the dynamic component */}
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          {/* Header - This loads instantly */}
           <Card
             bordered={false}
             style={{
@@ -234,7 +201,7 @@ export default function EditVehiclePage()  {
 
           <VehicleForm isEditMode={true} />
 
-          {/* Action Buttons are kept at the page level */}
+
           <Row justify="end">
             <Space>
               <Link href="/vehicles" passHref>

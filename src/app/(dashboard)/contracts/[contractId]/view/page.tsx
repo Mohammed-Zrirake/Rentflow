@@ -194,28 +194,6 @@ export default function ViewContractPage({
  };
 
 
- 
-  useEffect(() => {
-    const fetchContract = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await api.get<FullContractData>(
-          `/contracts/${params.contractId}`
-        );
-        setContract(response.data);
-      } catch (err) {
-        setError("Impossible de charger les données du contrat.");
-        toast.error("Échec du chargement des données.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (params.contractId) {
-      fetchContract();
-    }
-  }, [params.contractId]);
-
   if (loading) {
     return (
       <div style={{ padding: "24px" }}>
@@ -335,6 +313,11 @@ export default function ViewContractPage({
                     icon={<CheckOutlined />}
                     style={{ borderRadius: "8px" }}
                     type="primary"
+                    onClick={() =>
+                      router.push(
+                        `/contracts/${contract.id}/view?action=terminate`
+                      )
+                    }
                   >
                     Terminer
                   </Button>

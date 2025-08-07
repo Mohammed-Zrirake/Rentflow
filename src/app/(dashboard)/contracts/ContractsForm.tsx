@@ -115,7 +115,6 @@ export default function ContractForm({
   };
 
   return (
-    
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       {/* Section Informations client */}
       <Card
@@ -408,7 +407,7 @@ export default function ContractForm({
                 addonAfter="MAD"
                 style={{ width: "100%", borderRadius: "8px" }}
                 size="large"
-                disabled={isEditMode}
+                disabled
               />
             </Form.Item>
           </Col>

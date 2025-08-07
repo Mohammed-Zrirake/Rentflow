@@ -68,11 +68,29 @@ export default function CreateContractPage() {
                clientId: reservation.clientId,
                vehicleId: reservation.vehicleId,
                pickupMileage: reservation.vehicle.mileage,
+               dailyRate: Number(reservation.vehicle.dailyRate),
              });
              setSelectedVehicle(
                vehiclesRes.data.find((v) => v.id === reservation.vehicleId) ||
                  null
              );
+                 const vehicleData =
+                   vehiclesRes.data.find(
+                     (v) => v.id === reservation.vehicleId
+                   ) || null;
+                 setSelectedVehicle(vehicleData);
+               if (vehicleData) {
+                 const durationDays = dayjs(reservation.endDate).diff(
+                   dayjs(reservation.startDate),
+                   "day"
+                 );
+                 const totalCost = durationDays * Number(vehicleData.dailyRate);
+                 form.setFieldsValue({
+                   durationDays,
+                   endDate: dayjs(reservation.endDate),
+                   totalCost,
+                 });
+               }
            } else if (clientIdFromUrl) {
              form.setFieldsValue({
                clientId: clientIdFromUrl,
@@ -104,10 +122,10 @@ export default function CreateContractPage() {
           // Réinitialiser les champs dépendants et pré-remplir le kilométrage
           form.setFieldsValue({
             pickupMileage: vehicle.mileage,
+            dailyRate: Number(vehicle.dailyRate),
             startDate: undefined,
             durationDays: undefined,
             endDate: undefined,
-            dailyRate: undefined,
             totalCost: undefined,
             amountPaid: undefined,
             remainingAmount: undefined,
@@ -165,7 +183,6 @@ export default function CreateContractPage() {
       const remainingAmount = Math.max(totalCost - (amountPaid || 0), 0);
       form.setFieldsValue({ remainingAmount: remainingAmount });
     };
-
 
    const onFinish = async (values: any) => {
      setIsSubmitting(true);

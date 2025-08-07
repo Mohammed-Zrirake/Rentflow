@@ -117,8 +117,7 @@ export default function VehicleForm({
                       <Option value={VehicleStatus.AVAILABLE}>
                         Disponible
                       </Option>
-                      <Option value={VehicleStatus.RENTED}>Loué</Option>
-                      <Option value={VehicleStatus.RESERVED}>Réservé</Option>
+
                       <Option value={VehicleStatus.MAINTENANCE}>
                         Maintenance
                       </Option>

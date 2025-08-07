@@ -329,7 +329,7 @@ export default function ReservationForm({
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Form.Item
-              name="tarif_journalier"
+              name="dailyRate"
               label={<Text strong>Tarif journalier</Text>}
               rules={[rule]}
             >
@@ -338,6 +338,7 @@ export default function ReservationForm({
                 addonAfter="MAD"
                 min={0}
                 size="large"
+                disabled
               />
             </Form.Item>
           </Col>
