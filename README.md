@@ -1,6 +1,7 @@
 RentFlow - Application de Gestion de Location de Véhicules
 RentFlow est une solution complète conçue pour simplifier et automatiser la gestion d'une agence de location de véhicules. Développée avec une stack technologique moderne, elle offre une interface d'administration riche pour gérer la flotte, les clients, les réservations, les contrats et la facturation.
-
+<!-- Remplacez par une capture d'écran de votre tableau de bord -->
+![alt text](https://example.com/screenshot.png)
 Table des Matières
 Fonctionnalités Clés
 Stack Technologique
@@ -42,7 +43,7 @@ Validation : Zod (côté client) et class-validator (côté serveur)
 Structure du Projet (Monorepo)
 Ce projet est structuré en monorepo pnpm pour une meilleure organisation et un partage de code efficace.
 code
-Code
+Text
 /
 ├── apps/
 │   ├── rentflow-api/       # Application Backend (NestJS)
