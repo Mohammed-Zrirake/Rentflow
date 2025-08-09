@@ -3,9 +3,8 @@ import  { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import NextAuth, { DefaultSession, DefaultUser } from "next-auth";
-import { JWT, DefaultJWT } from "next-auth/jwt";
+import { DefaultJWT } from "next-auth/jwt";
 declare module "next-auth" {
-
 
   interface Session {
     accessToken: string;
@@ -14,7 +13,6 @@ declare module "next-auth" {
       role: string;
     } & DefaultSession["user"];
   }
-
   interface User extends DefaultUser {
     accessToken: string;
     user: {
@@ -51,24 +49,32 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-          {
-            method: "POST",
-            body: JSON.stringify(credentials),
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-
-        const user = await res.json();
-
-        if (res.ok && user) {
-          return user;
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Veuillez entrer votre email et votre mot de passe.");
         }
-        return null;
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+            {
+              method: "POST",
+              body: JSON.stringify(credentials),
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+
+          const responseData = await res.json();
+
+          if (!res.ok) {
+            throw new Error(responseData.message || "Identifiants incorrects.");
+          }
+          return responseData;
+        } catch (error: any) {
+          throw new Error(error.message);
+        }
       },
     }),
   ],
+
   session: {
     strategy: "jwt",
     maxAge: 7 * 24 * 60 * 60,
@@ -96,7 +102,5 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
 };
-
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };

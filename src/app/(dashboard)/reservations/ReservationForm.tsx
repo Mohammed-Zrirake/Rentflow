@@ -41,10 +41,11 @@ const { Text } = Typography;
 const { Option } = Select;
 
 type VehicleWithAvailability = Vehicle & {
-  engagements: { startDate: string; endDate: string }[];
+  engagements: { id: string; startDate: string; endDate: string }[];
 };
 
 interface ReservationFormProps {
+  isEditMode?: boolean;
   form: FormInstance<ReservationFormValues>;
   onValuesChange?: (changedValues: any, allValues: any) => void;
   isClientPreselected?: boolean;
@@ -73,6 +74,7 @@ const getStatusTag = (status: VehicleStatus) => {
 
 export default function ReservationForm({
   form,
+  isEditMode,
   clients,
   loadingClients,
   vehicles,
@@ -81,6 +83,9 @@ export default function ReservationForm({
   isClientPreselected,
   selectedVehicle,
 }: ReservationFormProps) {
+
+
+ 
   const disabledDate = (current: dayjs.Dayjs) => {
     // Règle 1: On ne peut pas sélectionner de dates dans le passé
     if (current && current.isBefore(dayjs().startOf("day"))) {
@@ -297,7 +302,7 @@ export default function ReservationForm({
                 size="large"
                 placeholder="jj/mm/aaaa --:--"
                 disabledDate={disabledDate}
-                disabled={!form.getFieldValue("vehicleId")}
+                disabled={!form.getFieldValue("vehicleId") || isEditMode}
               />
             </Form.Item>
           </Col>
@@ -312,6 +317,7 @@ export default function ReservationForm({
                 addonAfter="Jours"
                 min={1}
                 size="large"
+                disabled={isEditMode}
               />
             </Form.Item>
           </Col>

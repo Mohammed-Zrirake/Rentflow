@@ -155,9 +155,8 @@ const [reservationToConfirm, setReservationToConfirm] =
         }
       });
     };
-
     
-    const handleOpenConfirmModal = (reservationId: string) => {
+  const handleOpenConfirmModal = (reservationId: string) => {
       const reservation = reservations.find((res) => res.id === reservationId);
       if (!reservation) {
         toast.error("Données de la réservation introuvables.");

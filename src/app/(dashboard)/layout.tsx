@@ -6,6 +6,7 @@ import { Layout } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { App } from "antd";
+import AuthGuard from "@/components/AuthGuard";
 
 const { Content } = Layout;
 
@@ -17,33 +18,35 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <App>
-      <Layout style={{ minHeight: "100vh" }}>
-        <Sidebar />
-        <Layout style={{ marginLeft: SIDER_WIDTH }}>
-          <Header />
-          <Content
-            style={{
-              padding: "24px",
-              background: "#F9FAFB",
-            }}
-          >
-            {children}
-          </Content>
+    <AuthGuard>
+      <App>
+        <Layout style={{ minHeight: "100vh" }}>
+          <Sidebar />
+          <Layout style={{ marginLeft: SIDER_WIDTH }}>
+            <Header />
+            <Content
+              style={{
+                padding: "24px",
+                background: "#F9FAFB",
+              }}
+            >
+              {children}
+            </Content>
+          </Layout>
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
         </Layout>
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
-      </Layout>
-    </App>
+      </App>
+    </AuthGuard>
   );
 }

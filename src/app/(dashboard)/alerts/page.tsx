@@ -1,29 +1,23 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import {
-  Typography,
-  Space,
-  Row,
-  Col,
-  Tabs,
-  Empty,
-  Card,
-  Button, 
-  
-  Progress,
-  Badge,
-  Tag,
-  Spin,
-} from "antd";
-
+// 1. Modular imports (Ant Design v5 recommended approach)
+import Typography from 'antd/es/typography';
+import Space from 'antd/es/space';
+import Row from 'antd/es/row';
+import Col from 'antd/es/col';
+import Tabs from 'antd/es/tabs';
+import Empty from 'antd/es/empty';
+import Card from 'antd/es/card';
+import Button from 'antd/es/button';
+import Progress from 'antd/es/progress';
+import Badge from 'antd/es/badge';
+import Tag from 'antd/es/tag';
+import Spin from 'antd/es/spin';
 
 import type { AlertWithDetails, Client, Vehicle } from "@rentflow/database";
 import  { AlertType } from "@rentflow/database";
-
 const { Title, Text } = Typography;
-
-
 type AlertCardViewModel = {
   id: string;
   displayType: string; // User-friendly type name (e.g., "Assurance")

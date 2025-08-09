@@ -2,13 +2,27 @@
 
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Typography, Space, Row, Col, Card, Spin, Tag, Skeleton,Form } from "antd";
+import Typography from "antd/es/typography";
+import Space from "antd/es/space";
+import Row from "antd/es/row";
+import Col from "antd/es/col";
+import Tag from "antd/es/tag";
+
+
+const Card = dynamic(() => import("antd/es/card"), {
+  loading: () => <div className="min-h-[200px] bg-gray-50 rounded-lg" />,
+  ssr: false,
+});
+const Spin = dynamic(() => import("antd/es/spin"), { ssr: false });
+const Skeleton = dynamic(() => import("antd/es/skeleton"), { ssr: false });
+const Form = dynamic(() => import("antd/es/form"), { ssr: false });
 import api from "@/lib/api";
 import { ClientFormSchema, ClientFormValues } from "@rentflow/database/schemas";
 import { useRouter,useParams } from "next/navigation";
 import { toast } from "react-toastify";
 import { z } from "zod";
 import { Client } from "@rentflow/database"; 
+import { useForm } from "antd/es/form/Form";
 
 
 const { Title } = Typography;
@@ -57,7 +71,7 @@ const mapFormValuesToDto = (values: ClientFormValues) => ({
 });
 
 export default function EditClientPage() {
-  const [form] = Form.useForm(); 
+  const [form] = useForm(); 
   const router = useRouter();
   const params = useParams(); 
   const clientId = params.clientId as string;

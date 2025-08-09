@@ -1,14 +1,9 @@
 import axios from "axios";
 import { getSession, signOut } from "next-auth/react";
-import NextAuth, { DefaultSession, DefaultUser, Session } from "next-auth";
-import { JWT, DefaultJWT } from "next-auth/jwt";
-
-
-
+import { Session } from "next-auth";
 
 
 let getSessionPromise: Promise<Session | null> | null = null;
-
 
 const fetchAndCacheSession = () => {
   if (!getSessionPromise) {
@@ -16,11 +11,9 @@ const fetchAndCacheSession = () => {
   }
   return getSessionPromise;
 };
-
 const clearSessionCache = () => {
   getSessionPromise = null;
 };
-
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,

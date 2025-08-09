@@ -1,21 +1,19 @@
 "use client";
 
-import React, { useEffect } from "react";
-import {
-  Typography,
-  Button,
-  Space,
-  Row,
-  Col,
-  Card,
-  Form,
-  Input,
-  Radio,
-  Upload,
-  Tabs,
-  FormInstance,
 
-} from "antd";
+import Typography from "antd/es/typography";
+import Space from "antd/es/space";
+import Row from "antd/es/row";
+import Col from "antd/es/col";
+import dynamic from "next/dynamic";
+const Card = dynamic(() => import("antd/es/card"), {
+  loading: () => <div className="h-40 bg-gray-50 rounded-lg" />,
+  ssr: false,
+});
+const Input = dynamic(() => import("antd/es/input"), { ssr: false });
+const Upload = dynamic(() => import("antd/es/upload"), { ssr: false });
+import type { FormInstance } from "antd/es/form";
+const { Text } = Typography;
 import {
   UploadOutlined,
   UserOutlined,
@@ -28,9 +26,12 @@ import Link from "next/link";
 import { Gender } from "@rentflow/database";
 import { ClientFormSchema } from "@rentflow/database/schemas";
 import { createSchemaFieldRule } from "antd-zod"; 
+import Form from "antd/es/form";
+import Radio from "antd/es/radio";
+import Button from "antd/es/button";
+import Tabs from "antd/lib/tabs";
 
 
-const { Text } = Typography;
 const { TabPane } = Tabs;
 
 interface ClientFormProps {

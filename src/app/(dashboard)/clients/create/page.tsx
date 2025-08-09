@@ -3,7 +3,24 @@
 import { Space,Form} from "antd";
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
-import { Typography, Row, Col, Card, Tag, Skeleton } from "antd";
+import Typography from "antd/es/typography";
+import Row from "antd/es/row";
+import Col from "antd/es/col";
+import Tag from "antd/es/tag";
+
+// Heavier components with dynamic imports
+
+const Card = dynamic(() => import("antd/es/card"), {
+  loading: () => <div className="h-32 bg-gray-50 rounded" />, // Simple placeholder
+  ssr: false,
+});
+
+const Skeleton = dynamic(() => import("antd/es/skeleton"), {
+  ssr: false,
+});
+
+// Destructure Typography once
+const { Title} = Typography;
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { toast } from "react-toastify";
@@ -13,7 +30,6 @@ import {
   type ClientFormValues,
 } from "@rentflow/database/schemas";
 
-const { Title } = Typography;
 const ClientForm = dynamic(() => import("../ClientForm"), {
   loading: () => <Skeleton active paragraph={{ rows: 15 }} />,
   ssr: false,

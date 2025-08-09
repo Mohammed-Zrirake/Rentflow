@@ -16,7 +16,6 @@ import {
   Divider,
 } from "antd";
 import {
-
   CreditCardOutlined,
   ArrowLeftOutlined,
   SaveOutlined,
@@ -31,7 +30,7 @@ import { ReservationFormValues } from "@rentflow/database/schemas";
 
 const { Title, Text } = Typography;
 
-// --- DYNAMICALLY IMPORT HEAVY COMPONENTS ---
+
 const ReservationForm = dynamic(() => import("../../ReservationForm"), {
   loading: () => <Skeleton active paragraph={{ rows: 20 }} />,
   ssr: false,
@@ -52,7 +51,7 @@ const ReservationPaymentsTable = dynamic(
 );
 
 type VehicleWithAvailability = Vehicle & {
-  engagements: { startDate: string; endDate: string }[];
+  engagements: { id: string; startDate: string; endDate: string }[];
 };
 
 type NewClientData = Client;
@@ -92,6 +91,10 @@ export default function EditReservationPage({
         setReservation(resRes.data);
         setClients(clientsRes.data);
         setVehicles(vehiclesRes.data);
+        const currentVehicleWithEngagements = vehiclesRes.data.find(
+             (v) => v.id === resRes.data.vehicleId
+           );
+           setSelectedVehicle(currentVehicleWithEngagements || null);
       } catch (err) {
         console.error("Failed to fetch data:", err);
         setError(
@@ -155,7 +158,12 @@ export default function EditReservationPage({
 
    if (startDate && typeof nombre_jours === "number" && nombre_jours > 0) {
      if (selectedVehicle && selectedVehicle.engagements.length > 0) {
-       const nextEngagement = selectedVehicle.engagements
+
+   const otherEngagements = selectedVehicle.engagements.filter(
+     (e) => e.id !== params.reservationId
+   );
+
+       const nextEngagement = otherEngagements
          .map((e) => ({ start: dayjs(e.startDate) }))
          .filter((e) => e.start.isAfter(startDate))
          .sort((a, b) => a.start.diff(b.start))[0];
@@ -328,6 +336,8 @@ export default function EditReservationPage({
               vehicles={vehicles}
               loadingVehicles={loading}
               onOpenClientDrawer={() => setIsClientDrawerVisible(true)}
+              selectedVehicle={selectedVehicle}
+              isEditMode={true}
             />
             <Card
               title={

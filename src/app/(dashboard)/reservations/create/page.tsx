@@ -34,7 +34,7 @@ const router = useRouter();
  const [loadingClients, setLoadingClients] = useState(true);
  const [vehicles, setVehicles] = useState<VehicleWithAvailability[]>([]);
  const [loadingVehicles, setLoadingVehicles] = useState(true);
-   const [selectedVehicle, setSelectedVehicle] =
+ const [selectedVehicle, setSelectedVehicle] =
      useState<VehicleWithAvailability | null>(null);
  const [isClientDrawerVisible, setIsClientDrawerVisible] = useState(false);
  const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,7 +110,6 @@ const handleFormChange = (changedValues: any, allValues: any) => {
   const reste = Math.max(coutTotal - (montant || 0), 0);
   form.setFieldsValue({ reste: reste });
 };
-  
   const onFinish = async (values: any) => {
       setIsSubmitting(true);
       try {
@@ -181,6 +180,7 @@ const handleFormChange = (changedValues: any, allValues: any) => {
      };
      fetchInitialData();
    }, [clientIdFromUrl,form]);
+
 
   return (
     <>
