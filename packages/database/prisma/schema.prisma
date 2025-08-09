@@ -1,0 +1,371 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =================================================================
+//  MODÈLES DE LA BASE DE DONNÉES - MIS À JOUR
+// =================================================================
+
+
+model Agency {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  logoUrl         String?
+  publicPageSlug  String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // NOUVEAU: Champs pour les informations de l'entreprise
+  address         String?
+  city            String?
+  postalCode      String?
+  phone           String?
+  contactEmail    String?
+  rc              String?   // Registre de Commerce
+  patente         String?
+  ice             String?   // Identifiant Commun de l'Entreprise
+  iff             String?   // Identifiant Fiscal
+  cnss            String?
+  stampUrl        String?   // URL de l'image du tampon
+
+  
+    // NOUVEAU: Champs pour les paramètres de notification
+  insuranceReminderDays         Int? @default(30)
+  techInspectionReminderDays    Int? @default(30)
+  trafficLicenseReminderDays    Int? @default(30)
+  reservationReminderDays       Int? @default(3)
+  clientArrivalReminderDays     Int? @default(3)
+  oilChangeReminderKm           Int? @default(2000)
+
+  // Relations (une agence a plusieurs...)
+  users           User[]
+  vehicles        Vehicle[]
+  clients         Client[]
+  reservations    Reservation[]
+  contracts       Contract[]
+  invoices        Invoice[] // NOUVEAU: Relation vers les factures
+  alerts          Alert[]
+}
+
+// MODIFIÉ: Ajout des relations pour l'audit ("Créé par")
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  password  String
+  role      Role      @default(USER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  status    UserStatus @default(ACTIVE) 
+  agencyId  String
+  agency    Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  // NOUVEAU: Pour savoir qui a créé quoi
+  createdReservations Reservation[]
+  createdContracts    Contract[]
+}
+
+// MODIFIÉ: Ajout d'un champ et mise à jour de l'enum
+model Vehicle {
+  id                             String        @id @default(cuid())
+  make                           String
+  model                          String
+  year                           Int
+  licensePlate                   String        @unique
+  vin                            String?       @unique
+  images                         VehicleImage[] 
+  dailyRate                      Decimal       @db.Decimal(10, 2)
+  status                         VehicleStatus @default(AVAILABLE) // L'enum est aussi mis à jour plus bas
+  mileage                        Int           @default(0)
+  insuranceExpiryDate            DateTime?
+  technicalInspectionExpiryDate  DateTime?
+  nextOilChangeMileage           Int?
+  trafficLicenseExpiryDate       DateTime?     // NOUVEAU: Pour "Autorisation de circulation"
+  createdAt                      DateTime      @default(now())
+  updatedAt                      DateTime      @updatedAt
+  
+  agencyId                       String
+  agency                         Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  reservations                   Reservation[]
+  contracts                      Contract[]
+  maintenances                   Maintenance[]
+  alerts                         Alert[]
+}
+
+// MODIFIÉ: Ajout de la CIN et de la relation aux factures
+model Client {
+  id                 String     @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String?  
+  address            String? 
+  phone              String
+  nationality       String? 
+  driverLicense      String   
+  gender             Gender? 
+ 
+  identityDocumentUrl String?
+  idCardUrlFront     String?
+  idCardUrlBack      String?
+  driverLicenseUrlFront String?
+  driverLicenseUrlBack  String?
+  passportUrlFront   String?
+  passportUrlBack    String? 
+  cin                String?    
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+ 
+  agencyId           String
+  agency             Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  reservations       Reservation[]
+  contracts          Contract[]       @relation("PrimaryDriverContracts")
+  secondaryDriverContracts Contract[] @relation("SecondaryDriverContracts")
+  invoices           Invoice[]  
+  alerts             Alert[]
+
+  @@unique([agencyId, email])
+  @@unique([agencyId, driverLicense])
+}
+
+// MODIFIÉ: Ajout de l'audit et de la relation aux paiements d'acompte
+model Reservation {
+  id              String      @id @default(cuid())
+  startDate       DateTime
+  endDate         DateTime
+  estimatedCost   Decimal     @db.Decimal(10, 2)
+  status          ReservationStatus @default(PENDING) 
+  notes           String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Clés étrangères
+  agencyId        String
+  agency          Agency      @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  clientId        String
+  client          Client      @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  
+  vehicleId       String
+  vehicle         Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  // NOUVEAU: Qui a créé la réservation ?
+  createdById     String
+  createdBy       User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  // Relations
+  payments        Payment[]   // NOUVEAU: Une réservation peut avoir des paiements (acomptes)
+  contract        Contract?
+
+
+  invoice         Invoice?
+}
+
+// MODIFIÉ: Ajout de l'audit et de la relation à la facture
+model Contract {
+  id              String         @id @default(cuid())
+  startDate       DateTime
+  endDate         DateTime
+  totalCost       Decimal        @db.Decimal(10, 2)
+  status          ContractStatus @default(ACTIVE)
+  pickupMileage   Int
+  returnMileage   Int?
+  pickupFuelLevel Int?           
+  returnFuelLevel Int?  
+  dailyRate       Decimal        @db.Decimal(10, 2)
+  pickupNotes     String?        @db.Text
+  returnNotes     String?        @db.Text
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+ returnDate      DateTime? 
+
+  // Relation 1-to-1 avec la réservation
+  reservationId   String?        @unique
+  reservation     Reservation?   @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  // Clés étrangères
+  clientId        String
+  client          Client         @relation("PrimaryDriverContracts", fields: [clientId], references: [id], onDelete: Restrict)
+  
+
+
+  secondaryDriverId String?
+  secondaryDriver  Client?        @relation("SecondaryDriverContracts", fields: [secondaryDriverId], references: [id], onDelete: SetNull)
+
+  vehicleId       String
+  vehicle         Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  agencyId        String
+  agency          Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  // NOUVEAU: Qui a créé le contrat ?
+  createdById     String
+  createdBy       User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  // Relations
+  payments        Payment[]
+  invoice         Invoice?       
+}
+
+// NOUVEAU: Modèle pour les Factures
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  status          InvoiceStatus @default(PENDING)
+  issueDate       DateTime      @default(now())
+  dueDate         DateTime?
+  amountPaid      Decimal       @default(0.00) @db.Decimal(10, 2)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  agencyId        String        
+  agency          Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+
+  contractId      String?        @unique
+  contract        Contract?      @relation(fields: [contractId], references: [id], onDelete: SetNull)
+
+
+
+  reservationId   String?        @unique 
+  reservation     Reservation?   @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+}
+
+// MODIFIÉ: Pour être lié à une réservation OU un contrat
+model Payment {
+  id              String        @id @default(cuid())
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentDate     DateTime      @default(now())
+  method          PaymentMethod
+  
+  // Le paiement est pour un acompte de réservation...
+  reservationId   String?
+  reservation     Reservation?  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  // ...OU pour un contrat.
+  contractId      String?
+  contract        Contract?     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  // Note: Votre logique applicative doit assurer qu'un seul des deux (reservationId ou contractId) est renseigné.
+}
+
+model Maintenance {
+  id          String   @id @default(cuid())
+  description String
+  cost        Decimal? @db.Decimal(10, 2)
+  startDate   DateTime
+  endDate     DateTime?
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model Alert {
+    id          String    @id @default(cuid())
+    message     String    @db.Text
+    type        AlertType // L'enum est aussi mis à jour plus bas
+    dueDate     DateTime?
+    isResolved  Boolean   @default(false)
+    createdAt   DateTime  @default(now())
+
+    agencyId    String
+    agency      Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+    vehicleId   String?
+    vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+    clientId    String?
+    client      Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+}
+
+model VehicleImage {
+  id        String   @id @default(cuid())
+  url       String
+  createdAt DateTime @default(now())
+
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+// =================================================================
+//  ÉNUMÉRATIONS (Enums) - MISES À JOUR
+// =================================================================
+
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+  INACTIVE
+  RESERVED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  BANK_TRANSFER
+  CHECK
+}
+
+enum AlertType {
+  INSURANCE
+  TECHNICAL_INSPECTION
+  OIL_CHANGE
+  CLIENT_ARRIVAL
+  TRAFFIC_LICENSE
+  CUSTOM
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum ContractStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  PENDING      
+  PAID           
+  PARTIALLY_PAID 
+  VOID           
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ClientType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+

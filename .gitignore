@@ -1,4 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
@@ -9,33 +8,70 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
+*.jpeg
+*migration*
 # testing
 /coverage
-
 # next.js
 /.next/
 /out/
-
 # production
 /build
-
 # misc
 .DS_Store
 *.pem
-
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
 # env files (can opt-in for committing if needed)
 .env*
-
 # vercel
 .vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Dependencies
+# Ignore all node_modules folders in the entire project
+/node_modules
+/apps/**/node_modules
+/packages/**/node_modules
+# Environment variables
+# Never commit .env files!
+.env
+.env.*
+!.env.example
+# OS / IDE specific
+.DS_Store
+.vscode/
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+# =========================================
+# FRONTEND (Next.js in rentiflow-web)
+# =========================================
+/apps/rentiflow-web/.next/
+/apps/rentiflow-web/out/
+# =========================================
+# BACKEND (NestJS in rentiflow-api)
+# =========================================
+/apps/rentiflow-api/dist
+
+# User-generated content / data
+/apps/rentiflow-api/uploads/
+/apps/rentiflow-api/clientsData/
+/apps/rentiflow-api/generated/prisma
+
+#=======================================
+# packages
+#=======================================
+/packages/node_modules
+/packages/package.json
+/package/prisma
+
+#==========================================
+# Prisma
+#==========================================
