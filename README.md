@@ -1,138 +1,95 @@
 
-# RentFlow - Application de Gestion de Location de Véhicules
+# Project: RentFlow - Vehicle Rental Management Application
 
-RentFlow est une solution complète conçue pour simplifier et automatiser la gestion d'une agence de location de véhicules. Développée avec une stack technologique moderne, elle offre une interface d'administration riche pour gérer la flotte, les clients, les réservations, les contrats et la facturation.
+> [!summary] Project Overview
+> A full-stack, enterprise-grade application designed to streamline and automate the entire operational workflow of a vehicle rental agency. Built with a modern monorepo architecture, RentFlow provides a comprehensive admin dashboard to manage the vehicle fleet, clients, reservations, contracts, and billing.
 
-<!-- Remplacez l'URL par une capture d'écran de votre tableau de bord -->
+---
 
-## Table des Matières
-- Fonctionnalités Clés
-- Stack Technologique
-- Structure du Projet (Monorepo)
-- Prérequis
-- Installation et Lancement
-- Logique Métier et Flux de Travail
-- Variables d'Environnement
-- Prochaines Étapes
+## 🚀 Key Features & Responsibilities
 
-## Fonctionnalités Clés
-- **Gestion de la Flotte**: Ajout, modification et suivi des véhicules. Gestion du statut (Disponible, Loué, Réservé, En Maintenance) basé sur un calendrier d'engagements.
-- **Gestion des Clients**: Fichier client complet avec gestion des documents d'identité (CIN, permis, passeport).
-- **Système de Réservation Intelligent**:
-  - Calendrier de disponibilité des véhicules en temps réel.
-  - Gestion des réservations en chaîne (réservations futures pour des véhicules déjà engagés).
-  - Logique de confirmation de réservation avec gestion d'acomptes.
-- **Gestion des Contrats**:
-  - Création de contrats directs ou à partir d'une réservation confirmée.
-  - Gestion des conducteurs principaux et secondaires.
-  - Suivi de l'état du véhicule (kilométrage, carburant) au départ et au retour.
-- **Facturation et Paiements**:
-  - Génération automatique de factures pour chaque réservation et contrat.
-  - Suivi des statuts de paiement (En attente, Partiellement payé, Payé).
-  - Enregistrement de multiples paiements par facture.
-- **Gestion d'Équipe et Rôles**:
-  - Système de rôles (Admin, User).
-  - Permissions différenciées pour l'accès aux sections sensibles (Paramètres, Gestion d'équipe).
-- **Alertes Automatisées**: Création d'alertes en cas de conflits (ex: un véhicule mis en maintenance avec des réservations futures).
+> [!tip] This section details the core business logic and functionalities I designed and implemented.
 
-## Stack Technologique
-- **Framework Frontend**: Next.js (App Router)
-- **Framework Backend**: NestJS
-- **Langage**: TypeScript
-- **Base de Données**: MySQL
-- **ORM**: Prisma
-- **UI**: Ant Design
-- **Authentification**: NextAuth.js
-- **Gestionnaire de Paquets**: PNPM (avec Workspaces)
-- **Validation**: Zod (côté client) et class-validator (côté serveur)
+-   **Fleet Management:** Developed a system for adding, modifying, and tracking vehicles. Implemented a dynamic status engine (`Available`, `Rented`, `Reserved`, `Maintenance`) based on a real-time engagement calendar.
+-   **Intelligent Reservation System:**
+    -   Designed and built a real-time vehicle availability calendar.
+    -   Engineered logic for "chained reservations," allowing future bookings for vehicles already engaged in current contracts.
+    -   Implemented a reservation confirmation workflow, including down payment tracking.
+-   **Contract & Lifecycle Management:**
+    -   Created a module for generating contracts either directly or from a confirmed reservation.
+    -   Managed primary and secondary driver information.
+    -   Tracked vehicle state (mileage, fuel level) at checkout and check-in.
+-   **Automated Invoicing & Payments:**
+    -   Built an automated invoice generation system tied to reservations and contracts.
+    -   Developed a payment tracking module with statuses (`Pending`, `Partially Paid`, `Paid`).
+    -   Enabled multi-payment recording for a single invoice.
+-   **Role-Based Access Control (RBAC):**
+    -   Implemented a foundational team and role system (`Admin`, `User`).
+    -   Secured sensitive sections of the application (e.g., Settings, Team Management) based on user roles.
+-   **Automated Conflict Alerts:** Designed a proactive alert system to notify staff of scheduling conflicts, such as a vehicle being scheduled for maintenance while having upcoming reservations.
 
-## Structure du Projet (Monorepo)
-Ce projet est structuré en monorepo pnpm pour une meilleure organisation et un partage de code efficace.
-/
-├── apps/
-│ ├── rentflow-api/ # Application Backend (NestJS)
-│ └── rentflow-web/ # Application Frontend (Next.js)
-├── packages/
-│ ├── database/ # Schéma Prisma et client généré
-│ ├── schemas/ # Schémas de validation Zod partagés
-│ └── eslint-config-custom/ # Configuration ESLint partagée
-└── package.json # Dépendances et scripts du workspace
+---
 
-text
+## 🛠️ Tech Stack & Architecture
 
-## Prérequis
-- Node.js (v18 ou supérieur)
-- PNPM (v8 ou supérieur)
-- Un serveur de base de données MySQL
-- Docker (recommandé pour la base de données)
+-   **Frontend Framework:** **Next.js** (App Router)
+-   **Backend Framework:** **NestJS**
+-   **Primary Language:** **TypeScript**
+-   **Database:** **MySQL**
+-   **ORM:** **Prisma**
+-   **UI Library:** Ant Design
+-   **Authentication:** NextAuth.js
+-   **Validation:**
+    -   Client-Side: **Zod**
+    -   Server-Side: **class-validator**
+-   **Architecture:** **Monorepo** managed with **PNPM Workspaces** for efficient code sharing and dependency management.
 
-## Installation et Lancement
-1. Cloner le dépôt :
-```bash
-git clone [URL_DE_VOTRE_REPO]
-cd [NOM_DU_DOSSIER]
-Installer les dépendances :
-À la racine du projet, exécutez :
+> [!info] Monorepo Structure
+> The project is organized in a pnpm monorepo to maximize code reuse and maintain a single source of truth for shared logic.
+> ```
+> /
+> ├── apps/
+> │   ├── rentflow-api/  # NestJS Backend Application
+> │   └── rentflow-web/  # Next.js Frontend Application
+> ├── packages/
+> │   ├── database/      # Shared Prisma schema and generated client
+> │   ├── schemas/       # Shared Zod validation schemas
+> │   └── eslint-config-custom/ # Shared ESLint configuration
+> └── package.json       # Workspace root
+> ```
 
-bash
-pnpm install
-Configurer les Variables d'Environnement :
-Créez un fichier .env à la racine du projet et remplissez les variables nécessaires (voir la section Variables d'Environnement).
+---
 
-Appliquer les Migrations de la Base de Données :
-Cette commande va créer les tables dans votre base de données en se basant sur le schéma Prisma.
+## 📈 Business Logic & Workflow
 
-bash
-pnpm prisma migrate dev
-Lancer les applications en mode développement :
-Cette commande lancera simultanément le backend NestJS et le frontend Next.js.
+The application's core logic revolves around the lifecycle of a vehicle "engagement," from initial reservation to final billing.
 
-bash
-pnpm dev
-Le frontend sera accessible sur http://localhost:3000.
+1.  **Reservation (`PENDING`):** A vehicle is tentatively blocked for a specific period.
+2.  **Confirmation (`CONFIRMED`):** A down payment is received, and the reservation is validated.
+3.  **Contract Creation (`ACTIVE`):** The reservation is converted into an active contract. The vehicle's status changes to `RENTED`.
+4.  **Contract Termination (`COMPLETED`):** The vehicle is returned. The final cost is calculated, final payments are recorded, the invoice is updated, and the vehicle's status is recalculated (`AVAILABLE` or `MAINTENANCE`).
+5.  **Cancellation (`CANCELLED`/`VOID`):** A reservation or contract is cancelled. The associated invoice is voided, and the vehicle's availability is recalculated.
 
-Le backend sera accessible sur http://localhost:3001.
+> A centralized function analyzes each vehicle's engagement calendar to ensure its status is always accurate and up-to-date.
 
-Logique Métier et Flux de Travail
-Le cœur de l'application repose sur le cycle de vie d'un engagement, de la réservation à la facturation finale.
+---
 
-Réservation (PENDING): Un véhicule est bloqué pour une période.
+### Installation & Setup (For Technical Reference)
 
-Confirmation (CONFIRMED): Un acompte est versé, la réservation est validée.
+-   **Prerequisites:** Node.js (v18+), PNPM (v8+), MySQL, Docker (Recommended)
+-   **Installation Steps:**
+    1.  `git clone [REPO_URL]`
+    2.  `pnpm install`
+    3.  Configure `.env` file with database and auth credentials.
+    4.  `pnpm prisma migrate dev` to set up the database schema.
+    5.  `pnpm dev` to run both frontend and backend concurrently.
 
-Création de Contrat (ACTIVE): La réservation est transformée en contrat actif. Le statut du véhicule passe à RENTED.
+---
 
-Terminaison de Contrat (COMPLETED): Le client rend le véhicule. Le coût est recalculé, le paiement final est enregistré, la facture est mise à jour, et le statut du véhicule est recalculé (AVAILABLE ou MAINTENANCE).
+### Future Development & Next Steps
 
-Annulation (CANCELLED/VOID): Une réservation ou un contrat est annulé. La facture associée est annulée (VOID), et le statut du véhicule est recalculé.
-
-Le statut d'un véhicule est géré par une fonction centralisée qui analyse son calendrier d'engagements pour garantir une disponibilité toujours à jour.
-
-Variables d'Environnement
-Créez un fichier .env à la racine et ajoutez les variables suivantes :
-
-env
-# Base de données
-DATABASE_URL="mysql://[USER]:[PASSWORD]@[HOST]:[PORT]/[DATABASE_NAME]"
-
-# Authentification
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=[GÉNÉREZ_UNE_CLÉ_SECRÈTE_FORTE]
-JWT_SECRET=[LA_MÊME_CLÉ_SECRÈTE_FORTE]
-
-# Google Provider (Optionnel)
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-
-# API URL
-NEXT_PUBLIC_API_URL=http://localhost:3001/api
-Prochaines Étapes
-Implémenter la génération de PDF pour les contrats et les factures.
-
-Compléter la page d'alertes pour afficher les conflits et les rappels.
-
-Développer le système de gestion d'équipe (ajout/modification/blocage des utilisateurs).
-
-Mettre en place un système de rôles plus granulaire.
-
-Déployer l'application sur une plateforme comme Vercel (pour le frontend) et un service d'hébergement de serveurs (pour le backend).
+-   **PDF Generation:** Implement PDF generation for contracts and invoices.
+-   **Advanced Alerts:** Complete the alert dashboard to display conflicts and reminders.
+-   **Team Management:** Build out the UI for adding, modifying, and disabling user accounts.
+-   **Granular Roles:** Expand the RBAC system with more detailed permissions.
+-   **Deployment:** Deploy the application using Vercel (Frontend) and a cloud server provider (Backend).
